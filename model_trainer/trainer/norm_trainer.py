@@ -12,6 +12,7 @@ from lightning.pytorch.utilities.model_helpers import is_overridden
 from lightning_utilities import apply_to_collection
 from tqdm import tqdm
 
+
 class NormTrainer:
     def __init__(self, accelerator: Union[str, Accelerator] = "auto",
                  strategy: Union[str, Strategy] = "auto",
