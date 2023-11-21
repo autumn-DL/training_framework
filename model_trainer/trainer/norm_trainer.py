@@ -18,6 +18,7 @@ from torch import Tensor
 from tqdm import tqdm
 
 from model_trainer.basic_lib.find_last_checkpoint import get_latest_checkpoint_path
+from model_trainer.basic_lib.model_sum import ModelSummary
 
 
 class NormTrainer:
@@ -75,6 +76,7 @@ class NormTrainer:
         self.without_val = False
         # self.skip_save = True
         self.skip_val = True
+        self.ModelSummary=ModelSummary()
 
 
     def train_one_step(self, model: PL.LightningModule, batch: Any, batch_idx: int) -> torch.Tensor:
@@ -280,7 +282,8 @@ class NormTrainer:
             # currently, there is no way to support fsdp with model.configure_optimizers in fabric
             # as it would require fabric to hold a reference to the model, which we don't want to.
             raise NotImplementedError("BYOT currently does not support FSDP")
-
+        if self.fabric.is_global_zero:
+            self.ModelSummary.summary_model(trainer=self.fabric,pl_module=model)
         optimizer, scheduler_cfg = self._parse_optimizers_schedulers(model.configure_optimizers())
         assert optimizer is not None
         model, optimizer = self.fabric.setup(model, optimizer)
@@ -388,7 +391,7 @@ class NormTrainer:
             if self.fabric.is_global_zero:
                 tqdm_obj.reset()
             self.current_epoch += 1
-            if self.save_in_epoch_end:
+            if self.save_in_epoch_end and not self.global_step % self.val_step == 0:
                 self.save_checkpoint(self.state)
 
         if self.fabric.is_global_zero:
