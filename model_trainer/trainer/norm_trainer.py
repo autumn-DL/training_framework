@@ -76,6 +76,7 @@ class NormTrainer:
         # self.skip_save = True
         self.skip_val = True
 
+
     def train_one_step(self, model: PL.LightningModule, batch: Any, batch_idx: int) -> torch.Tensor:
         outputs: Union[torch.Tensor, Mapping[str, Any]] = model.training_step(batch, batch_idx=batch_idx)
         loss = outputs if isinstance(outputs, torch.Tensor) else outputs["loss"]
