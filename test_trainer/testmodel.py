@@ -6,7 +6,7 @@ from torchmetrics.functional.classification.accuracy import accuracy
 from model_trainer.trainer import norm_trainer
 from torchvision.datasets import MNIST
 from torchvision.transforms import ToTensor
-
+from lightning.pytorch.loggers import TensorBoardLogger
 
 class MNISTModule(L.LightningModule):
     def __init__(self) -> None:
@@ -29,11 +29,29 @@ class MNISTModule(L.LightningModule):
             torch.nn.Linear(32 * 7 * 7, 10),
         )
         self.loss_fn = torch.nn.CrossEntropyLoss()
+        self.opt_step=0
 
     def forward(self, x: torch.Tensor):
         return self.model(x)
 
-    def training_step(self, batch, batch_idx: int):
+    def sync_step(self,global_step:int):
+        self.opt_step=global_step
+
+    def training_step(self, batch, batch_idx: int,):
+        x, y = batch
+
+        logits = self(x)
+
+
+        loss = self.loss_fn(logits, y)
+        accuracy_train = accuracy(logits.argmax(-1), y, num_classes=10, task="multiclass", top_k=1)
+        if batch_idx%10:
+            tb_log={}
+            tb_log['training/loss'] = loss
+            self.logger.log_metrics(tb_log, step=self.opt_step)
+
+        return {"loss": loss, "logges": {'tloss':loss,'tacc':accuracy_train}}
+    def training_stepv(self, batch, batch_idx: int):
         x, y = batch
 
         logits = self(x)
@@ -41,7 +59,7 @@ class MNISTModule(L.LightningModule):
         loss = self.loss_fn(logits, y)
         accuracy_train = accuracy(logits.argmax(-1), y, num_classes=10, task="multiclass", top_k=1)
 
-        return {"loss": loss, "accuracy": accuracy_train}
+        return {'valloss':loss,'valacc':accuracy_train}
 
     def configure_optimizers(self):
         optim = torch.optim.Adam(self.parameters(), lr=1e-4)
@@ -54,7 +72,7 @@ class MNISTModule(L.LightningModule):
 
     def validation_step(self, *args, **kwargs):
         time.sleep(0.1)
-        return self.training_step(*args, **kwargs)
+        return self.training_stepv(*args, **kwargs)
 
     def train_dataloader(self):
         train_set = MNIST(root="./MNIST", train=True, transform=ToTensor(), download=True)
@@ -81,7 +99,12 @@ def train(model):
     accelerator='gpu'
 
     trainer = norm_trainer.NormTrainer(
-        accelerator=accelerator, devices="auto", limit_train_batches=500, limit_val_batches=10, max_epochs=30
+        accelerator=accelerator, devices="auto", limit_train_batches=500, limit_val_batches=10, max_epochs=50,loggers=TensorBoardLogger(
+            save_dir=str('./ckpy/py'),
+            name='lightning_logs',
+            version='lastest',
+
+        ), checkpoint_dir='./ckpy/py'
     )
     trainer.fit(model)
 

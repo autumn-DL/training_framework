@@ -1,3 +1,6 @@
+import re
+from pathlib import Path
+
 import torch
 import lightning as PL
 import os
@@ -35,7 +38,10 @@ class NormTrainer:
                  auto_continue: bool = True,
                  val_step: int = 2000,
                  ignore_missing_ckpt_key: bool = False,
+                 save_in_epoch_end: bool = False,
+                 keep_ckpt_num: Optional[int] = 5
                  ):
+        self.state = None
         self.fabric = PL.Fabric(
             accelerator=accelerator,
             strategy=strategy,
@@ -58,6 +64,8 @@ class NormTrainer:
         self.use_distributed_sampler = use_distributed_sampler
         self.checkpoint_dir = checkpoint_dir
         self.auto_continue = auto_continue
+        self.save_in_epoch_end = save_in_epoch_end
+        self.keep_ckpt_num = keep_ckpt_num
 
         self._current_train_return = {}
         self.train_log = {}
@@ -65,6 +73,8 @@ class NormTrainer:
         self.train_stop = False
         self.ignore_missing_ckpt_key = ignore_missing_ckpt_key
         self.without_val = False
+        # self.skip_save = True
+        self.skip_val = True
 
     def train_one_step(self, model: PL.LightningModule, batch: Any, batch_idx: int) -> torch.Tensor:
         outputs: Union[torch.Tensor, Mapping[str, Any]] = model.training_step(batch, batch_idx=batch_idx)
@@ -161,6 +171,8 @@ class NormTrainer:
         ckpt_path = get_latest_checkpoint_path(ckpt_save_path)
         if ckpt_path is None:
             return
+        if self.fabric.is_global_zero:
+            print(f'find ckpt {ckpt_path}')
         checkpoint = torch.load(ckpt_path)
 
         invalid_keys = [k for k in state if k not in checkpoint]
@@ -188,6 +200,7 @@ class NormTrainer:
 
         self.global_step = checkpoint.pop("global_step")
         self.current_epoch = checkpoint.pop("current_epoch")
+        self.forward_step = checkpoint.pop("forward_step")
         if self.ignore_missing_ckpt_key:
             if self.fabric.is_global_zero:
                 print(f'miss key{str(checkpoint)}')
@@ -195,6 +208,53 @@ class NormTrainer:
 
             if checkpoint:
                 raise RuntimeError(f"Unused Checkpoint Values: {checkpoint}")
+        print(f'load  ckpt {ckpt_path}')
+
+    def get_save_name(self):
+
+        if not isinstance(self.checkpoint_dir, Path):
+            work_dir = Path(self.checkpoint_dir)
+        else:
+            work_dir = self.checkpoint_dir
+        ckpt_list = []
+        remove_list = []
+        for ckpt in work_dir.glob('model_ckpt_steps_*.ckpt'):
+            search = re.search(r'steps_\d+', ckpt.name)
+            if search:
+                step = int(search.group(0)[6:])
+                ckpt_list.append((step, str(ckpt.name)))
+        if len(ckpt_list) < self.keep_ckpt_num:
+            return remove_list, f'model_ckpt_steps_{str(self.global_step)}.ckpt', work_dir
+        num_remove = len(ckpt_list) + 1 - self.keep_ckpt_num
+        ckpt_list.sort(key=lambda x: x[0])
+        remove_list = ckpt_list[:num_remove]
+        return remove_list, f'model_ckpt_steps_{str(self.global_step)}.ckpt', work_dir
+        # for i in ckpt_list:
+        # todo
+
+    def remove_ckpt(self, remove_list, work_dir):
+        for i in remove_list:
+            ojb_path = work_dir / i[1]
+            print(f'remove ckpt {str(ojb_path)}')
+            ojb_path.unlink(missing_ok=True)
+
+    def save_checkpoint(self, state: dict):
+        save_state = {}
+        save_state.update(global_step=self.global_step,
+                          current_epoch=self.current_epoch,
+                          forward_step=self.forward_step)
+        for i in state:
+            if i == 'model':
+                save_state.update({i: state[i].state_dict()})
+            elif i == 'optim':
+                save_state.update({i: state[i].state_dict()})
+            else:
+                save_state.update({i: state[i]})
+        remove_list, save_name, work_dir = self.get_save_name()
+
+        self.fabric.save(work_dir / save_name, save_state)
+        print(f'model {save_name} svae')
+        self.remove_ckpt(remove_list=remove_list, work_dir=work_dir)
 
     def fit(
             self,
@@ -223,13 +283,19 @@ class NormTrainer:
         optimizer, scheduler_cfg = self._parse_optimizers_schedulers(model.configure_optimizers())
         assert optimizer is not None
         model, optimizer = self.fabric.setup(model, optimizer)
-        state = {"model": model, "optim": optimizer, "scheduler": scheduler_cfg}
-        self.load_ckpt(ckpt_save_path=self.checkpoint_dir, state=state)
+        self.state = {"model": model, "optim": optimizer, "scheduler": scheduler_cfg}
+
+        self.load_ckpt(ckpt_save_path=self.checkpoint_dir, state=self.state)
 
         if self.max_epochs is not None and self.current_epoch >= self.max_epochs:
             self.train_stop = True
         if self.max_steps is not None and self.global_step >= self.max_steps:
             self.train_stop = True
+
+        if self.global_step == 0:
+            self.skip_val = True
+            if self.fabric.is_global_zero and not self.without_val:  # todo need add
+                self.val_loop(model=model, val_loader=val_loader)
 
         self.fit_loop(
             model=model,
@@ -252,10 +318,13 @@ class NormTrainer:
         if self.fabric.is_global_zero:
             # train_loader = tqdm(train_loader)
             tqdm_obj = tqdm(total=len(train_loader))
+            tqdm_obj.set_description("epoch %s" % str(self.current_epoch))
 
         while not self.train_stop:
 
             for batch_idx, batch in enumerate(train_loader):
+
+                can_save = False
 
                 if self.max_steps is not None:
                     if self.global_step >= self.max_steps:
@@ -284,14 +353,24 @@ class NormTrainer:
                 if should_optim_step:
                     self.step_scheduler(model, scheduler_cfg, level="step", current_value=self.global_step)
 
-                if self.global_step % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:
-                    self.val_loop(model=model, val_loader=val_loader)
+                if model.sync_step is not None:
+                    model.sync_step(self.global_step)
+
+                if self.global_step % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
+                    if self.skip_val:
+                        self.skip_val = False
+                    else:
+                        self.val_loop(model=model, val_loader=val_loader)
+                        can_save = True
+                if self.fabric.is_global_zero and can_save:
+                    self.save_checkpoint(self.state)
                 self.global_step += int(should_optim_step)
                 self.forward_step += 1
+
                 if self.fabric.is_global_zero:
                     tqdm_loges = {}
-                    if self.train_log != {}:
-                        tqdm_loges.update(self.train_log)
+                    if self.train_log != {} or self.train_log is not None:
+                        tqdm_loges.update(**self.train_log)
                     if self.val_log != {}:
                         tqdm_loges.update(self.val_log)
                     tqdm_loges.update({'step': self.global_step})
@@ -308,6 +387,9 @@ class NormTrainer:
             if self.fabric.is_global_zero:
                 tqdm_obj.reset()
             self.current_epoch += 1
+            if self.save_in_epoch_end:
+                self.save_checkpoint(self.state)
+
         if self.fabric.is_global_zero:
             tqdm_obj.close()
 
@@ -316,18 +398,24 @@ class NormTrainer:
             self,
             model: PL.LightningModule,
             val_loader: torch.utils.data.DataLoader,
+            limit_val_batches: int = None
     ):
+        if limit_val_batches is None:
+            limit_val_batches = self.limit_val_batches
         model.eval()
-        tqdm_obj = tqdm(total=len(val_loader))
+        tqdm_obj = tqdm(total=len(val_loader), leave=False)
+        tqdm_obj.set_description("val_start")
         for batch_idx, batch in enumerate(val_loader):
-            if self.limit_val_batches is not None:
-                if batch_idx >= self.limit_val_batches:
+            if limit_val_batches is not None:
+                if batch_idx >= limit_val_batches:
                     break
             self.val_one_step(model=model, batch=batch, batch_idx=batch_idx)
 
             tqdm_obj.set_description("val_setp %s" % str(batch_idx))
             tqdm_obj.update()
         model.train()
+
+        tqdm_obj.display()
         tqdm_obj.close()
 
     def step_scheduler(
