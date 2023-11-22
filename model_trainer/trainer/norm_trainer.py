@@ -71,13 +71,13 @@ class NormTrainer:
         self._current_train_return = {}
         self.train_log = {}
         self.val_log = {}
+        self.val_logs = []
         self.train_stop = False
         self.ignore_missing_ckpt_key = ignore_missing_ckpt_key
         self.without_val = False
         # self.skip_save = True
         self.skip_val = True
-        self.ModelSummary=ModelSummary()
-
+        self.ModelSummary = ModelSummary()
 
     def train_one_step(self, model: PL.LightningModule, batch: Any, batch_idx: int) -> torch.Tensor:
         outputs: Union[torch.Tensor, Mapping[str, Any]] = model.training_step(batch, batch_idx=batch_idx)
@@ -100,12 +100,24 @@ class NormTrainer:
         outputs: Union[torch.Tensor, Mapping[str, Any]] = model.validation_step(batch, batch_idx=batch_idx)
 
         if not isinstance(outputs, torch.Tensor) and outputs:
-            self.val_log = apply_to_collection(outputs, dtype=torch.Tensor,
-                                               function=lambda x: x.detach().cpu().item())
+            self.val_logs.append(apply_to_collection(outputs, dtype=torch.Tensor,
+                                                     function=lambda x: x.detach().cpu().item()))
         else:
-            self.val_log = {'loss': outputs.detach().cpu().item()}
+            self.val_logs.append({'loss': outputs.detach().cpu().item()})
 
         return None
+
+    def sum_val_log(self):
+        tempdict = {}
+        for i in self.val_logs:
+            for j in i:
+                if tempdict.get(j) is None:
+                    tempdict[j] = [i[j]]
+                else:
+                    tempdict[j].append(i[j])
+        for i in tempdict:
+            tempdict[i] = sum(tempdict[i]) / len(tempdict[i])
+        return tempdict
 
     def _parse_optimizers_schedulers(
             self, configure_optim_output
@@ -266,7 +278,7 @@ class NormTrainer:
         self.fabric.launch()
 
         train_loader = model.train_dataloader()
-        if model.val_dataloader():
+        if model.val_dataloader():  # todo need fix
             val_loader = model.val_dataloader()
         else:
             val_loader = None
@@ -283,7 +295,7 @@ class NormTrainer:
             # as it would require fabric to hold a reference to the model, which we don't want to.
             raise NotImplementedError("BYOT currently does not support FSDP")
         if self.fabric.is_global_zero:
-            self.ModelSummary.summary_model(trainer=self.fabric,pl_module=model)
+            self.ModelSummary.summary_model(trainer=self.fabric, pl_module=model)
         optimizer, scheduler_cfg = self._parse_optimizers_schedulers(model.configure_optimizers())
         assert optimizer is not None
         model, optimizer = self.fabric.setup(model, optimizer)
@@ -356,8 +368,7 @@ class NormTrainer:
 
                 if should_optim_step:
                     self.step_scheduler(model, scheduler_cfg, level="step", current_value=self.global_step)
-
-                if model.sync_step is not None:
+                if hasattr(model, 'sync_step'):
                     model.sync_step(self.global_step)
 
                 if self.global_step % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
@@ -373,6 +384,7 @@ class NormTrainer:
 
                 if self.fabric.is_global_zero:
                     tqdm_loges = {}
+                    # tqdm_loges.update({'lr': scheduler_cfg["scheduler"].get_lr()[0]})
                     if self.train_log != {} or self.train_log is not None:
                         tqdm_loges.update(**self.train_log)
                     if self.val_log != {}:
@@ -421,6 +433,13 @@ class NormTrainer:
 
         tqdm_obj.display()
         tqdm_obj.close()
+
+        if hasattr(model, "on_validation_end_logs"):
+            outlog = model.on_validation_end_logs(self.val_logs)
+            if outlog is None:
+                self.val_log = {}
+        else:
+            self.val_log = self.sum_val_log()
 
     def step_scheduler(
             self,

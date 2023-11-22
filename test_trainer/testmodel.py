@@ -50,6 +50,9 @@ class MNISTModule(L.LightningModule):
         if batch_idx % 10:
             tb_log = {}
             tb_log['training/loss'] = loss
+            tb_log['training/accuracy_train'] = accuracy_train
+
+
             self.logger.log_metrics(tb_log, step=self.opt_step)
 
         return {"loss": loss, "logges": {'tloss': loss, 'tacc': accuracy_train}}
@@ -64,10 +67,12 @@ class MNISTModule(L.LightningModule):
 
         return {'valloss': loss, 'valacc': accuracy_train}
 
+    # def on_validation_end_logs(self,logs):
+    #     pass
     def configure_optimizers(self):
         optim = torch.optim.Adam(self.parameters(), lr=1e-4)
         return optim, {
-            "scheduler": torch.optim.lr_scheduler.StepLR(optim, step_size=50000, gamma=0.5),
+            "scheduler": torch.optim.lr_scheduler.StepLR(optim, step_size=1000, gamma=0.9),
             "monitor": "val_accuracy",
             "interval": "step",
             "frequency": 1,
@@ -106,17 +111,17 @@ def train(model):
     trainer = norm_trainer.NormTrainer(
         accelerator=accelerator, devices="auto", limit_train_batches=500, limit_val_batches=10, max_epochs=50,
         loggers=TensorBoardLogger(
-            save_dir=str('./ckpy/py1'),
+            save_dir=str('./ckpy/py2'),
             name='lightning_logs',
             version='lastest',
 
-        ), checkpoint_dir='./ckpy/py1'
+        ), checkpoint_dir='./ckpy/py2'
     )
     trainer.fit(model)
 
 
 def run():
-    code_saver(['run_test.py', 'model_trainer'], './ckpy/py1')
+    code_saver(['run_test.py', 'model_trainer'], './ckpy/py2')
     train(MNISTModule())
 
 
