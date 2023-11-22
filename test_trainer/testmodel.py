@@ -12,7 +12,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 
 
 class MNISTModule(L.LightningModule):
-    def __init__(self) -> None:
+    def __init__(self,config) -> None:
         super().__init__()
         self.model = torch.nn.Sequential(
             torch.nn.Conv2d(

@@ -1,4 +1,8 @@
+import datetime
+import pathlib
+
 import yaml
+from typing import Optional, Union
 
 
 def load_yaml(path: str) -> dict:
@@ -10,6 +14,12 @@ def load_yaml(path: str) -> dict:
 def save_config(path, config: dict) -> None:
     with open(path, 'w') as f:
         yaml.dump(config, f)
+
+
+def backup_config(config: dict, workdir: pathlib.Path, time_now):
+    config_dir = workdir / 'config'
+    config_dir.mkdir(parents=True, exist_ok=True)
+    save_config(path=config_dir / (str(time_now) + '.yaml'), config=config)
 
 
 def pbase_config(topc: dict, basec_list: list[str]) -> dict:
@@ -27,7 +37,7 @@ def pbase_config(topc: dict, basec_list: list[str]) -> dict:
     return bcfg
 
 
-def get_config(path: str) -> dict:
+def get_config(path: Union[str, pathlib.Path]) -> dict:
     topc = load_yaml(path=path)
     basec = topc.get('base_config')
     if basec is not None:

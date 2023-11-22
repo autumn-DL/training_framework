@@ -1,0 +1,12 @@
+
+
+
+
+
+pl_trainer_accelerator: 'auto'
+pl_trainer_devices: 'auto'
+pl_trainer_precision: '32-true'
+pl_trainer_num_nodes: 1
+pl_trainer_strategy: 'auto'
+
+task_cls: test_trainer.testmodel.MNISTModule
