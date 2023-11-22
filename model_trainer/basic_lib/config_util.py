@@ -7,6 +7,11 @@ def load_yaml(path: str) -> dict:
     return data
 
 
+def save_config(path, config: dict) -> None:
+    with open(path, 'w') as f:
+        yaml.dump(config, f)
+
+
 def pbase_config(topc: dict, basec_list: list[str]) -> dict:
     bcfg = {}
 
