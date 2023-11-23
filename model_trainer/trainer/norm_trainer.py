@@ -369,7 +369,11 @@ class NormTrainer:
                 if should_optim_step:
                     self.step_scheduler(model, scheduler_cfg, level="step", current_value=self.global_step)
                 if hasattr(model, 'sync_step'):
-                    model.sync_step(self.global_step)
+                    model.sync_step(
+                        global_step=self.global_step,
+                        forward_step=self.forward_step,
+                        global_epoch=self.current_epoch
+                    )
 
                 if self.global_step % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
                     if self.skip_val:

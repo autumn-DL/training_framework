@@ -12,7 +12,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 
 
 class MNISTModule(L.LightningModule):
-    def __init__(self,config) -> None:
+    def __init__(self, config) -> None:
         super().__init__()
         self.model = torch.nn.Sequential(
             torch.nn.Conv2d(
@@ -37,7 +37,7 @@ class MNISTModule(L.LightningModule):
     def forward(self, x: torch.Tensor):
         return self.model(x)
 
-    def sync_step(self, global_step: int):
+    def sync_step(self, global_step: int, forward_step: int, global_epoch: int):
         self.opt_step = global_step
 
     def training_step(self, batch, batch_idx: int, ):
@@ -51,7 +51,6 @@ class MNISTModule(L.LightningModule):
             tb_log = {}
             tb_log['training/loss'] = loss
             tb_log['training/accuracy_train'] = accuracy_train
-
 
             self.logger.log_metrics(tb_log, step=self.opt_step)
 
