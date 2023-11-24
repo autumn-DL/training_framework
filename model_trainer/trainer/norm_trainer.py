@@ -19,6 +19,7 @@ from tqdm import tqdm
 
 from model_trainer.basic_lib.find_last_checkpoint import get_latest_checkpoint_path
 from model_trainer.basic_lib.model_sum import ModelSummary
+from model_trainer.basic_lib.precision_map import cov_precision
 
 
 class NormTrainer:
@@ -52,6 +53,7 @@ class NormTrainer:
             callbacks=callbacks,
             loggers=loggers,
         )
+        self.precision = cov_precision(precision)
         self.val_step = val_step
         self.global_step = 0
         self.grad_accum_steps = grad_accum_steps
@@ -276,7 +278,6 @@ class NormTrainer:
             model: PL.LightningModule,
     ):
         self.fabric.launch()
-
         train_loader = model.train_dataloader()
         if model.val_dataloader():  # todo need fix
             val_loader = model.val_dataloader()
