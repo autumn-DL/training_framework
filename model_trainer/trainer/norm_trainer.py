@@ -86,6 +86,7 @@ class NormTrainer:
         loss = outputs if isinstance(outputs, torch.Tensor) else outputs["loss"]
 
         # self.fabric.call("on_before_backward", loss)
+        loss = loss / self.grad_accum_steps
         self.fabric.backward(loss)
         # self.fabric.call("on_after_backward")
 
