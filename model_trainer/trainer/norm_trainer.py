@@ -41,7 +41,8 @@ class NormTrainer:
                  val_step: int = 2000,
                  ignore_missing_ckpt_key: bool = False,
                  save_in_epoch_end: bool = False,
-                 keep_ckpt_num: Optional[int] = 5
+                 keep_ckpt_num: Optional[int] = 5,
+                 max_depth:int=1
                  ):
         self.state = None
         self.fabric = PL.Fabric(
@@ -79,7 +80,7 @@ class NormTrainer:
         self.without_val = False
         # self.skip_save = True
         self.skip_val = True
-        self.ModelSummary = ModelSummary()
+        self.ModelSummary = ModelSummary(max_depth=max_depth)
 
     def train_one_step(self, model: PL.LightningModule, batch: Any, batch_idx: int) -> torch.Tensor:
         outputs: Union[torch.Tensor, Mapping[str, Any]] = model.training_step(batch, batch_idx=batch_idx)
