@@ -42,7 +42,11 @@ class NormTrainer:
                  ignore_missing_ckpt_key: bool = False,
                  save_in_epoch_end: bool = False,
                  keep_ckpt_num: Optional[int] = 5,
-                 max_depth:int=1
+                 max_depth: int = 1,
+                 show_opt_step: bool = True,
+                 show_forward_step: bool = True,
+                 internal_state_step_type: Literal['opt_step', 'forward_step'] = 'opt_step'
+
                  ):
         self.state = None
         self.fabric = PL.Fabric(
@@ -54,6 +58,9 @@ class NormTrainer:
             callbacks=callbacks,
             loggers=loggers,
         )
+        self.internal_state_step_type = internal_state_step_type
+        self.show_opt_step = show_opt_step
+        self.show_forward_step = show_forward_step
         self.precision = cov_precision(precision)
         self.val_step = val_step
         self.global_step = 0
@@ -81,6 +88,14 @@ class NormTrainer:
         # self.skip_save = True
         self.skip_val = True
         self.ModelSummary = ModelSummary(max_depth=max_depth)
+
+    def get_state_step(self):
+        if self.internal_state_step_type == 'opt_step':
+            return self.global_step
+        elif self.internal_state_step_type == 'forward_step':
+            return self.forward_step
+        else:
+            raise RuntimeError(f'{str(self.internal_state_step_type)}_not support')
 
     def train_one_step(self, model: PL.LightningModule, batch: Any, batch_idx: int) -> torch.Tensor:
         outputs: Union[torch.Tensor, Mapping[str, Any]] = model.training_step(batch, batch_idx=batch_idx)
@@ -112,16 +127,16 @@ class NormTrainer:
         return None
 
     def sum_val_log(self):
-        tempdict = {}
+        temp_dict = {}
         for i in self.val_logs:
             for j in i:
-                if tempdict.get(j) is None:
-                    tempdict[j] = [i[j]]
+                if temp_dict.get(j) is None:
+                    temp_dict[j] = [i[j]]
                 else:
-                    tempdict[j].append(i[j])
-        for i in tempdict:
-            tempdict[i] = sum(tempdict[i]) / len(tempdict[i])
-        return tempdict
+                    temp_dict[j].append(i[j])
+        for i in temp_dict:
+            temp_dict[i] = sum(temp_dict[i]) / len(temp_dict[i])
+        return temp_dict
 
     def _parse_optimizers_schedulers(
             self, configure_optim_output
@@ -229,7 +244,7 @@ class NormTrainer:
                 raise RuntimeError(f"Unused Checkpoint Values: {checkpoint}")
         print(f'load  ckpt {ckpt_path}')
 
-    def get_save_name(self):
+    def get_local_ckpt_name(self):
 
         if not isinstance(self.checkpoint_dir, Path):
             work_dir = Path(self.checkpoint_dir)
@@ -269,7 +284,7 @@ class NormTrainer:
                 save_state.update({i: state[i].state_dict()})
             else:
                 save_state.update({i: state[i]})
-        remove_list, save_name, work_dir = self.get_save_name()
+        remove_list, save_name, work_dir = self.get_local_ckpt_name()
 
         self.fabric.save(work_dir / save_name, save_state)
         print(f'model {save_name} svae')
@@ -396,8 +411,11 @@ class NormTrainer:
                         tqdm_loges.update(**self.train_log)
                     if self.val_log != {}:
                         tqdm_loges.update(self.val_log)
-                    tqdm_loges.update({'step': self.global_step})
-                    tqdm_loges.update({'forward_step': self.forward_step})
+
+                    if self.show_opt_step:
+                        tqdm_loges.update({'step': str(self.global_step)})
+                    if self.show_forward_step:
+                        tqdm_loges.update({'forward_step': str(self.forward_step)})
                     tqdm_obj.set_postfix(**tqdm_loges)
                     tqdm_obj.set_description("epoch %s" % str(self.current_epoch))
                     tqdm_obj.update()
@@ -447,6 +465,9 @@ class NormTrainer:
                 self.val_log = {}
         else:
             self.val_log = self.sum_val_log()
+
+        if hasattr(model, 'on_sum_validation_logs'):
+            model.on_sum_validation_logs(self.val_log)
 
     def step_scheduler(
             self,
