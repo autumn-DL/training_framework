@@ -12,7 +12,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 
 
 class MNISTModule(L.LightningModule):
-    def __init__(self, config) -> None:
+    def __init__(self) -> None:
         super().__init__()
         self.model = torch.nn.Sequential(
             torch.nn.Conv2d(
@@ -108,13 +108,13 @@ def train(model):
     accelerator = 'gpu'
 
     trainer = norm_trainer.NormTrainer(
-        accelerator=accelerator, devices="auto", limit_train_batches=500, limit_val_batches=10, max_epochs=50,
+        accelerator=accelerator, devices="auto", limit_train_batches=500, limit_val_batches=10, max_epochs=130,
         loggers=TensorBoardLogger(
             save_dir=str('./ckpy/py2'),
             name='lightning_logs',
             version='lastest',
 
-        ), checkpoint_dir='./ckpy/py2'
+        ), checkpoint_dir='./ckpy/py2',progress_bar_type='tqdm'
     )
     trainer.fit(model)
 

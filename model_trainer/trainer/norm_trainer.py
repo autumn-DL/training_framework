@@ -20,6 +20,7 @@ from tqdm import tqdm
 from model_trainer.basic_lib.find_last_checkpoint import get_latest_checkpoint_path
 from model_trainer.basic_lib.model_sum import ModelSummary
 from model_trainer.basic_lib.precision_map import cov_precision
+from model_trainer.basic_lib.progress_bar_util import Adp_bar
 
 
 class NormTrainer:
@@ -45,9 +46,11 @@ class NormTrainer:
                  max_depth: int = 1,
                  show_opt_step: bool = True,
                  show_forward_step: bool = True,
-                 internal_state_step_type: Literal['opt_step', 'forward_step'] = 'opt_step'
+                 internal_state_step_type: Literal['opt_step', 'forward_step'] = 'opt_step',
+                 progress_bar_type: Literal['tqdm', 'rich'] = 'tqdm',
 
                  ):
+
         self.state = None
         self.fabric = PL.Fabric(
             accelerator=accelerator,
@@ -88,6 +91,10 @@ class NormTrainer:
         # self.skip_save = True
         self.skip_val = True
         self.ModelSummary = ModelSummary(max_depth=max_depth)
+        if self.fabric.is_global_zero:
+            self.bar_obj = Adp_bar(bar_type=progress_bar_type)
+        else:
+            self.bar_obj = None
 
     def get_state_step(self):
         if self.internal_state_step_type == 'opt_step':
@@ -296,7 +303,8 @@ class NormTrainer:
     ):
         self.fabric.launch()
         train_loader = model.train_dataloader()
-        if model.val_dataloader():  # todo need fix
+
+        if hasattr(model, 'val_dataloader'):  # todo need fix
             val_loader = model.val_dataloader()
         else:
             val_loader = None
@@ -351,8 +359,9 @@ class NormTrainer:
 
         if self.fabric.is_global_zero:
             # train_loader = tqdm(train_loader)
-            tqdm_obj = tqdm(total=len(train_loader))
-            tqdm_obj.set_description("epoch %s" % str(self.current_epoch))
+            self.bar_obj.setup_train(total=len(train_loader))
+            # tqdm_obj = tqdm(total=len(train_loader))
+            self.bar_obj.set_description_train("epoch %s" % str(self.current_epoch))
 
         while not self.train_stop:
 
@@ -416,9 +425,9 @@ class NormTrainer:
                         tqdm_loges.update({'step': str(self.global_step)})
                     if self.show_forward_step:
                         tqdm_loges.update({'forward_step': str(self.forward_step)})
-                    tqdm_obj.set_postfix(**tqdm_loges)
-                    tqdm_obj.set_description("epoch %s" % str(self.current_epoch))
-                    tqdm_obj.update()
+                    self.bar_obj.set_postfix_train(**tqdm_loges)
+                    self.bar_obj.set_description_train("epoch %s" % str(self.current_epoch))
+                    self.bar_obj.update_train()
 
             self.step_scheduler(model, scheduler_cfg, level="epoch", current_value=self.current_epoch)  # todo
             if self.max_epochs is not None:
@@ -426,13 +435,14 @@ class NormTrainer:
                     self.train_stop = True
 
             if self.fabric.is_global_zero:
-                tqdm_obj.reset()
+                self.bar_obj.rest_train()
             self.current_epoch += 1
-            if self.save_in_epoch_end and not self.global_step % self.val_step == 0:
+            if self.save_in_epoch_end and not self.global_step % self.val_step and self.fabric.is_global_zero == 0:
                 self.save_checkpoint(self.state)
 
         if self.fabric.is_global_zero:
-            tqdm_obj.close()
+            self.bar_obj.close_train()
+            self.bar_obj.close_rich()
 
     @torch.no_grad()
     def val_loop(
@@ -444,20 +454,25 @@ class NormTrainer:
         if limit_val_batches is None:
             limit_val_batches = self.limit_val_batches
         model.eval()
-        tqdm_obj = tqdm(total=len(val_loader), leave=False)
-        tqdm_obj.set_description("val_start")
+        # tqdm_obj = tqdm(total=len(val_loader), leave=False)
+        # tqdm_obj.set_description("val_start")
+        self.bar_obj.setup_val(total=len(val_loader))
+        self.bar_obj.set_description_val('val_start')
         for batch_idx, batch in enumerate(val_loader):
             if limit_val_batches is not None:
                 if batch_idx >= limit_val_batches:
                     break
             self.val_one_step(model=model, batch=batch, batch_idx=batch_idx)
 
-            tqdm_obj.set_description("val_setp %s" % str(batch_idx))
-            tqdm_obj.update()
+            # tqdm_obj.set_description("val_setp %s" % str(batch_idx))
+            self.bar_obj.set_description_val("val_setp %s" % str(batch_idx))
+            # tqdm_obj.update()
+            self.bar_obj.update_val()
         model.train()
 
-        tqdm_obj.display()
-        tqdm_obj.close()
+        # tqdm_obj.display()
+        # tqdm_obj.close()
+        self.bar_obj.close_val()
 
         if hasattr(model, "on_validation_end_logs"):
             outlog = model.on_validation_end_logs(self.val_logs)
