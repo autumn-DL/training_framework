@@ -268,11 +268,11 @@ class NormTrainer:
                 step = int(search.group(0)[6:])
                 ckpt_list.append((step, str(ckpt.name)))
         if len(ckpt_list) < self.keep_ckpt_num:
-            return remove_list, f'model_ckpt_steps_{str(self.global_step)}.ckpt', work_dir
+            return remove_list, f'model_ckpt_steps_{str(self.get_state_step())}.ckpt', work_dir
         num_remove = len(ckpt_list) + 1 - self.keep_ckpt_num
         ckpt_list.sort(key=lambda x: x[0])
         remove_list = ckpt_list[:num_remove]
-        return remove_list, f'model_ckpt_steps_{str(self.global_step)}.ckpt', work_dir
+        return remove_list, f'model_ckpt_steps_{str(self.get_state_step())}.ckpt', work_dir
         # for i in ckpt_list:
         # todo
 
@@ -334,7 +334,7 @@ class NormTrainer:
 
         if self.max_epochs is not None and self.current_epoch >= self.max_epochs:
             self.train_stop = True
-        if self.max_steps is not None and self.global_step >= self.max_steps:
+        if self.max_steps is not None and self.get_state_step() >= self.max_steps:
             self.train_stop = True
 
         if self.global_step == 0:
@@ -373,7 +373,7 @@ class NormTrainer:
                 can_save = False
 
                 if self.max_steps is not None:
-                    if self.global_step >= self.max_steps:
+                    if self.get_state_step() >= self.max_steps:
                         self.train_stop = True
                         break
 
@@ -381,7 +381,7 @@ class NormTrainer:
                     if self.train_stop or batch_idx >= self.limit_train_batches:
                         break
 
-                should_optim_step = self.global_step % self.grad_accum_steps == 0
+                should_optim_step = self.forward_step % self.grad_accum_steps == 0
                 if should_optim_step:
                     # currently only supports a single optimizer
                     # self.fabric.call("on_before_optimizer_step", optimizer, 0)
@@ -398,7 +398,7 @@ class NormTrainer:
                     self.train_one_step(model=model, batch=batch, batch_idx=batch_idx, optimizer=optimizer)
 
                 if should_optim_step:
-                    self.step_scheduler(model, scheduler_cfg, level="step", current_value=self.global_step)
+                    self.step_scheduler(model, scheduler_cfg, level="step", current_value=self.get_state_step())
                 if hasattr(model, 'sync_step'):
                     model.sync_step(
                         global_step=self.global_step,
@@ -406,7 +406,7 @@ class NormTrainer:
                         global_epoch=self.current_epoch
                     )
 
-                if self.global_step % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
+                if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
                     if self.skip_val:
                         self.skip_val = False
                     else:
@@ -441,7 +441,7 @@ class NormTrainer:
             if self.fabric.is_global_zero:
                 self.bar_obj.rest_train()
             self.current_epoch += 1
-            if self.save_in_epoch_end and not self.global_step % self.val_step and self.fabric.is_global_zero == 0:
+            if self.save_in_epoch_end and not self.get_state_step() % self.val_step and self.fabric.is_global_zero == 0:
                 self.save_checkpoint(self.state)
 
         if self.fabric.is_global_zero:
