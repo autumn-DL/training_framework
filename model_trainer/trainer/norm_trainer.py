@@ -104,7 +104,10 @@ class NormTrainer:
         else:
             raise RuntimeError(f'{str(self.internal_state_step_type)}_not support')
 
-    def train_one_step(self, model: PL.LightningModule, batch: Any, batch_idx: int) -> torch.Tensor:
+    def train_one_step(self, model: PL.LightningModule, batch: Any, batch_idx: int,
+                       optimizer: torch.optim.Optimizer) -> torch.Tensor:
+        if self.grad_accum_steps == 1:
+            optimizer.zero_grad()
         outputs: Union[torch.Tensor, Mapping[str, Any]] = model.training_step(batch, batch_idx=batch_idx)
         loss = outputs if isinstance(outputs, torch.Tensor) else outputs["loss"]
 
@@ -384,14 +387,15 @@ class NormTrainer:
                     # self.fabric.call("on_before_optimizer_step", optimizer, 0)
 
                     # optimizer step runs train step internally through closure
-                    optimizer.step(partial(self.train_one_step, model=model, batch=batch, batch_idx=batch_idx))
+                    optimizer.step(partial(self.train_one_step, model=model, batch=batch, batch_idx=batch_idx,
+                                           optimizer=optimizer))
                     # self.fabric.call("on_before_zero_grad", optimizer)
 
                     optimizer.zero_grad()
 
                 else:
                     # gradient accumulation -> no optimizer step
-                    self.train_one_step(model=model, batch=batch, batch_idx=batch_idx)
+                    self.train_one_step(model=model, batch=batch, batch_idx=batch_idx, optimizer=optimizer)
 
                 if should_optim_step:
                     self.step_scheduler(model, scheduler_cfg, level="step", current_value=self.global_step)
