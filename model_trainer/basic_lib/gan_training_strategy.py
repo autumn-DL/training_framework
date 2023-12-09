@@ -66,11 +66,11 @@ class NormGanTrainStrategy:
         def generator_step(prent_obj_,
                            discriminator_model_,
                            generator_optimizers_,
-
+                           generator_output_,
                            batch_,
                            batch_idx_, ):
             generator_optimizers_.zero_grad()
-            generator_discriminator_fake_output = discriminator_model_.training_step(batch=generator_output,
+            generator_discriminator_fake_output = discriminator_model_.training_step(batch=generator_output_,
                                                                                      batch_idx=batch_idx_)
             generator_discriminator_true_output = discriminator_model_.training_step(batch=batch_, batch_idx=batch_idx_)
             generator_discriminator_losses, generator_discriminator_logs = discriminator_model_.model_loss.generator_discriminator_loss_fn(
@@ -87,12 +87,11 @@ class NormGanTrainStrategy:
                     prent_obj_=prent_obj,
                     discriminator_model_=discriminator_model,
                     generator_optimizers_=generator_optimizers,
-
+                    generator_output_=generator_output,
                     batch_=batch,
                     batch_idx_=batch_idx,
                     ))
         generator_optimizers.zero_grad()
-        discriminator_optimizers.zero_grad()
         prent_obj.step_scheduler(generator_model, generator_schedulers, level="step",
                                  current_value=prent_obj.get_state_step())
         prent_obj.global_step += 1

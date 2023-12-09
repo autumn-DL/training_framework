@@ -113,7 +113,7 @@ class model_loss(nn.Module):
         super().__init__()
 
     def generator_discriminator_loss_fn(self,generator_discriminator_fake,generator_discriminator_true):
-        fx=generator_discriminator_true['Dout']
+        fx=generator_discriminator_fake['Dout']
         loss=F.mse_loss(fx,torch.ones_like(fx))
         return loss,{'GDloss':loss}
     def discriminator_loss_fn(self,discriminator_fake,discriminator_true):
