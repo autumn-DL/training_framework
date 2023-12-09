@@ -12,7 +12,7 @@ from lightning.pytorch.loggers import TensorBoardLogger
 
 
 class MNISTModule(L.LightningModule):
-    def __init__(self) -> None:
+    def __init__(self,config=None) -> None:
         super().__init__()
         self.model = torch.nn.Sequential(
             torch.nn.Conv2d(
@@ -69,7 +69,13 @@ class MNISTModule(L.LightningModule):
     # def on_validation_end_logs(self,logs):
     #     pass
     def configure_optimizers(self):
-        optim = torch.optim.Adam(self.parameters(), lr=1e-4)
+        # optim = torch.optim.LBFGS(self.parameters(), lr=1e-2 #,max_iter=5
+        #                           )
+
+        optim = torch.optim.AdamW(self.parameters(), lr=1e-4, )
+        # optim = torch.optim.Adadelta(self.parameters(), lr=1e-2, )
+        # optim = torch.optim.(self.parameters(), lr=1e-2, )
+        # optim = torch.optim.Adam(self.parameters(), lr=1e-4, )
         return optim, {
             "scheduler": torch.optim.lr_scheduler.StepLR(optim, step_size=1000, gamma=0.9),
             "monitor": "val_accuracy",
@@ -85,7 +91,7 @@ class MNISTModule(L.LightningModule):
         train_set = MNIST(root="./MNIST", train=True, transform=ToTensor(), download=True)
 
         train_loader = torch.utils.data.DataLoader(
-            train_set, batch_size=64, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4,
+            train_set, batch_size=128, shuffle=True, pin_memory=torch.cuda.is_available(), num_workers=4,
             persistent_workers=True
         )
 

@@ -398,7 +398,7 @@ class NormTrainer:
                     self.train_one_step(model=model, batch=batch, batch_idx=batch_idx, optimizer=optimizer)
 
                 if should_optim_step:
-                    self.step_scheduler(model, scheduler_cfg, level="step", current_value=self.get_state_step())
+                    self.step_scheduler(model, scheduler_cfg, level="step", current_value=self.get_state_step()) #todo need
                 if hasattr(model, 'sync_step'):
                     model.sync_step(
                         global_step=self.global_step,

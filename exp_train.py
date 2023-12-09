@@ -57,14 +57,15 @@ def train(config, exp_name, work_dir):
         precision=config['pl_trainer_precision'],
         limit_train_batches=500,
         limit_val_batches=10,
-        max_epochs=50,
+        max_epochs=500,
         loggers=TensorBoardLogger(
             save_dir=str(work_dir),
             name='lightning_logs',
             version='lastest',
 
         ),
-        checkpoint_dir=str(work_dir)
+        checkpoint_dir=str(work_dir),
+        grad_accum_steps=4
     )
 
     trainer.fit(task)
@@ -73,4 +74,4 @@ def train(config, exp_name, work_dir):
 os.environ['TORCH_CUDNN_V8_API_ENABLED'] = '1'  # Prevent unacceptable slowdowns when using 16 precision
 
 if __name__ == '__main__':
-    train(config='expcfg/cfg.yaml', exp_name='test', work_dir='ckpy')
+    train(config='expcfg/cfg.yaml', exp_name='test_E', work_dir='ckpy')
