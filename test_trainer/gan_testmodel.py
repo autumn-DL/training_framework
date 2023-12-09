@@ -35,8 +35,8 @@ class GMNISTModule(L.LightningModule):
         #     # fully connected layer, output 10 classes
         #     torch.nn.Linear(32 * 7 * 7, 10),
         # )
-        self.model = torch.nn.Sequential(nn.Linear(10, 384), nn.GELU(), nn.Linear(384, 256), nn.GELU()
-                                       , nn.Linear(256, 784), nn.Sigmoid())
+        self.model = torch.nn.Sequential(nn.Linear(10, 384), nn.GELU(), nn.Linear(384, 512), nn.GELU()
+                                       , nn.Linear(512, 784), nn.Sigmoid())
         # self.loss_fn = torch.nn.CrossEntropyLoss()
         self.opt_step = 0
 
@@ -150,8 +150,8 @@ class DMNISTModule(L.LightningModule):
         #                                  nn.Linear(728, 1650), nn.GELU(),
         #                                  nn.Linear(1650, 1024), nn.GELU(), nn.Linear(1024, 784), nn.Sigmoid())
         self.model_loss=model_loss()
-        self.model = torch.nn.Sequential(nn.Linear(784, 256),
-                                         nn.Linear(256, 384), nn.GELU(), nn.Linear(384, 1), nn.Sigmoid())
+        self.model = torch.nn.Sequential(nn.Linear(784, 1024),nn.Linear(1024, 768), nn.GELU(),
+                                         nn.Linear(768, 384), nn.GELU(), nn.Linear(384, 1), nn.Sigmoid())
         # self.loss_fn = torch.nn.CrossEntropyLoss()
         self.opt_step = 0
 
@@ -215,11 +215,11 @@ def train(Gmodel,Dmodel):
     trainer = GanTrainer(
         accelerator=accelerator, devices="auto", limit_train_batches=None, limit_val_batches=10, max_epochs=130,
         loggers=TensorBoardLogger(
-            save_dir=str('./ckpt/gan'),
+            save_dir=str('./ckpt/gan1'),
             name='lightning_logs',
             version='lastest',
 
-        ), checkpoint_dir='./ckpt/gan'#,progress_bar_type='rich'
+        ), checkpoint_dir='./ckpt/gan1',progress_bar_type='rich',val_step=4000,grad_accum_steps=2
     )
     trainer.fit(generator_model=Gmodel,discriminator_model=Dmodel)
 

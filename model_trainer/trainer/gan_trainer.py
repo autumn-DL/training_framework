@@ -18,7 +18,7 @@ from torch import Tensor
 from tqdm import tqdm
 
 from model_trainer.basic_lib.find_last_checkpoint import get_latest_checkpoint_path, gan_get_latest_checkpoint_path
-from model_trainer.basic_lib.gan_training_strategy import NormGanTrainStrategy
+from model_trainer.basic_lib.gan_training_strategy import NormGanTrainStrategy, GradAccumGanTrainStrategy
 from model_trainer.basic_lib.model_sum import ModelSummary
 from model_trainer.basic_lib.precision_map import cov_precision
 from model_trainer.basic_lib.progress_bar_util import Adp_bar
@@ -115,13 +115,14 @@ class GanTrainer:
         if training_strategy is None and grad_accum_steps == 1:
             self.training_strategy = NormGanTrainStrategy()
         elif training_strategy is None and grad_accum_steps != 1:
-            self.training_strategy
+            self.training_strategy = GradAccumGanTrainStrategy(grad_accum_steps=grad_accum_steps)
         else:
             if isinstance(training_strategy, str):
                 import importlib
                 pkg = ".".join(training_strategy.split(".")[:-1])
                 cls_name = training_strategy.split(".")[-1]
                 task_cls = getattr(importlib.import_module(pkg), cls_name)
+                training_strategy_arg.update({'grad_accum_steps': grad_accum_steps})
                 self.training_strategy = task_cls(batch_size, **training_strategy_arg)
             else:
                 raise RuntimeError("")  # todo
@@ -399,7 +400,7 @@ class GanTrainer:
 
         if self.max_epochs is not None and self.current_epoch >= self.max_epochs:
             self.train_stop = True
-        if self.max_steps is not None and self.global_step >= self.max_steps:
+        if self.max_steps is not None and self.get_state_step() >= self.max_steps:
             self.train_stop = True
 
         if self.global_step == 0:
@@ -453,7 +454,7 @@ class GanTrainer:
                 can_save = False
 
                 if self.max_steps is not None:
-                    if self.global_step >= self.max_steps:
+                    if self.get_state_step() >= self.max_steps:
                         self.train_stop = True
                         break
 
@@ -501,7 +502,7 @@ class GanTrainer:
                         global_epoch=self.current_epoch
                     )
 
-                if self.global_step % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
+                if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
                     if self.skip_val:
                         self.skip_val = False
                     else:
@@ -544,7 +545,7 @@ class GanTrainer:
             if self.fabric.is_global_zero:
                 self.bar_obj.rest_train()
             self.current_epoch += 1
-            if self.save_in_epoch_end and not self.global_step % self.val_step and self.fabric.is_global_zero == 0:
+            if self.save_in_epoch_end and not self.get_state_step() % self.val_step and self.fabric.is_global_zero == 0:
                 self.save_checkpoint(self.generator_state, state_type='G')
                 self.save_checkpoint(self.discriminator_state, state_type='D')
 
