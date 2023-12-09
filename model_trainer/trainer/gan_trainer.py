@@ -107,6 +107,7 @@ class GanTrainer:
         # self.skip_save = True
         self.skip_val = True
         self.ModelSummary = ModelSummary(max_depth=max_depth)
+        self.last_val_step = 0
         if self.fabric.is_global_zero:
             self.bar_obj = Adp_bar(bar_type=progress_bar_type)
         else:
@@ -319,11 +320,11 @@ class GanTrainer:
                 step = int(search.group(0)[6:])
                 ckpt_list.append((step, str(ckpt.name)))
         if len(ckpt_list) < self.keep_ckpt_num:
-            return remove_list, f'model_ckpt_steps_{str(self.global_step)}.ckpt', work_dir
+            return remove_list, f'model_ckpt_steps_{str(self.get_state_step())}.ckpt', work_dir
         num_remove = len(ckpt_list) + 1 - self.keep_ckpt_num
         ckpt_list.sort(key=lambda x: x[0])
         remove_list = ckpt_list[:num_remove]
-        return remove_list, f'model_ckpt_steps_{str(self.global_step)}.ckpt', work_dir
+        return remove_list, f'model_ckpt_steps_{str(self.get_state_step())}.ckpt', work_dir
         # for i in ckpt_list:
         # todo
 
@@ -503,6 +504,8 @@ class GanTrainer:
                     )
 
                 if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
+                    if self.last_val_step == self.get_state_step():
+                        self.skip_val = True
                     if self.skip_val:
                         self.skip_val = False
                     else:
@@ -510,6 +513,7 @@ class GanTrainer:
                         generator_model.train()
                         discriminator_model.train()
                         can_save = True
+                        self.last_val_step = self.get_state_step()
                 if self.fabric.is_global_zero and can_save:
                     self.save_checkpoint(self.generator_state, state_type='G')
                     self.save_checkpoint(self.discriminator_state, state_type='D')
