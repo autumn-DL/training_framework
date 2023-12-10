@@ -124,9 +124,10 @@ class GanTrainer:
                 cls_name = training_strategy.split(".")[-1]
                 task_cls = getattr(importlib.import_module(pkg), cls_name)
                 training_strategy_arg.update({'grad_accum_steps': grad_accum_steps})
-                self.training_strategy = task_cls(batch_size, **training_strategy_arg)
+                self.training_strategy = task_cls(**training_strategy_arg)
             else:
-                raise RuntimeError("")  # todo
+                self.training_strategy = training_strategy(**training_strategy_arg)
+                # raise RuntimeError("")  # todo
 
     def get_state_step(self):
         if self.internal_state_step_type == 'opt_step':
