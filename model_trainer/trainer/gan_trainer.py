@@ -57,14 +57,16 @@ class GanTrainer:
                  max_depth: int = 1,
                  show_opt_step: bool = True,
                  show_forward_step: bool = True,
-                 internal_state_step_type: Literal['opt_step', 'forward_step'] = 'opt_step',
+                 show_generator_opt_step: bool = True,
+                 internal_state_step_type: Literal[
+                     'opt_step', 'forward_step', 'generator_opt_step'] = 'generator_opt_step',
                  progress_bar_type: Literal['tqdm', 'rich'] = 'tqdm',
                  batch_size: Optional[int] = None,
                  training_strategy: Optional = None,
                  training_strategy_arg: Optional[dict] = None,
 
                  ):
-
+        self.show_generator_opt_step = show_generator_opt_step
         self.discriminator_state = None
         self.generator_state = None
         # self.state = None
@@ -83,6 +85,7 @@ class GanTrainer:
         self.precision = cov_precision(precision)
         self.val_step = val_step
         self.global_step = 0
+        self.generator_opt_step = 0
         self.grad_accum_steps = grad_accum_steps
         self.current_epoch = 0
         self.forward_step = 0
@@ -134,6 +137,8 @@ class GanTrainer:
             return self.global_step
         elif self.internal_state_step_type == 'forward_step':
             return self.forward_step
+        elif self.internal_state_step_type == 'generator_opt_step':
+            return self.generator_opt_step
         else:
             raise RuntimeError(f'{str(self.internal_state_step_type)}_not support')
 
@@ -281,17 +286,21 @@ class GanTrainer:
             self.global_step = checkpoint.pop("global_step")
             self.current_epoch = checkpoint.pop("current_epoch")
             self.forward_step = checkpoint.pop("forward_step")
+            self.generator_opt_step = checkpoint.pop("generator_opt_step")
         if state_type == 'D':
 
             D_global_step = checkpoint.pop("global_step")
             D_current_epoch = checkpoint.pop("current_epoch")
             D_forward_step = checkpoint.pop("forward_step")
+            D_generator_opt_step = checkpoint.pop("generator_opt_step")
             if self.fabric.is_global_zero:
                 if D_global_step != self.global_step:
                     print(f'D{str(D_global_step)}!=G{str(self.global_step)}')
                 if D_current_epoch != self.current_epoch:
                     print(f'D{str(D_global_step)}!=G{str(self.global_step)}')
                 if D_forward_step != self.forward_step:
+                    print(f'D{str(D_global_step)}!=G{str(self.global_step)}')
+                if D_generator_opt_step != self.generator_opt_step:
                     print(f'D{str(D_global_step)}!=G{str(self.global_step)}')
 
         if self.ignore_missing_ckpt_key:
@@ -339,7 +348,8 @@ class GanTrainer:
         save_state = {}
         save_state.update(global_step=self.global_step,
                           current_epoch=self.current_epoch,
-                          forward_step=self.forward_step)
+                          forward_step=self.forward_step,
+                          generator_opt_step=self.generator_opt_step)
         for i in state:
             if i == 'model':
                 save_state.update({i: state[i].state_dict()})
@@ -533,6 +543,8 @@ class GanTrainer:
                         tqdm_loges.update({'step': str(self.global_step)})
                     if self.show_forward_step:
                         tqdm_loges.update({'forward_step': str(self.forward_step)})
+                    if self.show_generator_opt_step:
+                        tqdm_loges.update({'generator_opt_step': str(self.generator_opt_step)})
                     self.bar_obj.set_postfix_train(**tqdm_loges)
                     self.bar_obj.set_description_train("epoch %s" % str(self.current_epoch))
                     self.bar_obj.update_train()

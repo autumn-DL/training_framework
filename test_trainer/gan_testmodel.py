@@ -215,11 +215,11 @@ def train(Gmodel,Dmodel):
     trainer = GanTrainer(
         accelerator=accelerator, devices="auto", limit_train_batches=None, limit_val_batches=10, max_epochs=130,
         loggers=TensorBoardLogger(
-            save_dir=str('./ckpt/gan2'),
+            save_dir=str('./ckpt/gan3'),
             name='lightning_logs',
             version='lastest',
 
-        ), checkpoint_dir='./ckpt/gan2',progress_bar_type='rich',val_step=4000,grad_accum_steps=1
+        ), checkpoint_dir='./ckpt/gan3',progress_bar_type='rich',val_step=4000,grad_accum_steps=10
     )
     trainer.fit(generator_model=Gmodel,discriminator_model=Dmodel)
 

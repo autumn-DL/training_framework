@@ -95,6 +95,7 @@ class NormGanTrainStrategy:
         prent_obj.step_scheduler(generator_model, generator_schedulers, level="step",
                                  current_value=prent_obj.get_state_step())
         prent_obj.global_step += 1
+        prent_obj.generator_opt_step += 1
         prent_obj.train_log = loges
 
 
@@ -184,6 +185,7 @@ class GradAccumGanTrainStrategy:
             prent_obj.step_scheduler(generator_model, generator_schedulers, level="step",
                                      current_value=prent_obj.get_state_step())
             prent_obj.global_step += 1
+            prent_obj.generator_opt_step += 1
             prent_obj.train_log = apply_to_collection(loges, dtype=torch.Tensor,
                                                       function=lambda x: x.detach().cpu().item())
             self.batchs=[]
