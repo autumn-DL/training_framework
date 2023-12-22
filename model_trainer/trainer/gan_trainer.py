@@ -458,6 +458,18 @@ class GanTrainer:
             self.bar_obj.setup_train(total=len(train_loader))
             # tqdm_obj = tqdm(total=len(train_loader))
             self.bar_obj.set_description_train("epoch %s" % str(self.current_epoch))
+        if hasattr(generator_model, 'sync_step'):
+            generator_model.sync_step(
+                global_step=self.global_step,
+                forward_step=self.forward_step,
+                global_epoch=self.current_epoch
+            )
+        if hasattr(discriminator_model, 'sync_step'):
+            discriminator_model.sync_step(
+                global_step=self.global_step,
+                forward_step=self.forward_step,
+                global_epoch=self.current_epoch
+            )
 
         while not self.train_stop:
 
@@ -501,18 +513,18 @@ class GanTrainer:
                                                       discriminator_schedulers=discriminator_schedulers,
                                                       batch=batch,
                                                       batch_idx=batch_idx)
-                if hasattr(generator_model, 'sync_step'):
-                    generator_model.sync_step(
-                        global_step=self.global_step,
-                        forward_step=self.forward_step,
-                        global_epoch=self.current_epoch
-                    )
-                if hasattr(discriminator_model, 'sync_step'):
-                    discriminator_model.sync_step(
-                        global_step=self.global_step,
-                        forward_step=self.forward_step,
-                        global_epoch=self.current_epoch
-                    )
+                # if hasattr(generator_model, 'sync_step'):
+                #     generator_model.sync_step(
+                #         global_step=self.global_step,
+                #         forward_step=self.forward_step,
+                #         global_epoch=self.current_epoch
+                #     )
+                # if hasattr(discriminator_model, 'sync_step'):
+                #     discriminator_model.sync_step(
+                #         global_step=self.global_step,
+                #         forward_step=self.forward_step,
+                #         global_epoch=self.current_epoch
+                #     )
 
                 if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
                     if self.last_val_step == self.get_state_step():
@@ -530,7 +542,18 @@ class GanTrainer:
                     self.save_checkpoint(self.discriminator_state, state_type='D')
                 # self.global_step += int(should_optim_step)
                 self.forward_step += 1
-
+                if hasattr(generator_model, 'sync_step'):
+                    generator_model.sync_step(
+                        global_step=self.global_step,
+                        forward_step=self.forward_step,
+                        global_epoch=self.current_epoch
+                    )
+                if hasattr(discriminator_model, 'sync_step'):
+                    discriminator_model.sync_step(
+                        global_step=self.global_step,
+                        forward_step=self.forward_step,
+                        global_epoch=self.current_epoch
+                    )
                 if self.fabric.is_global_zero:
                     tqdm_loges = {}
                     # tqdm_loges.update({'lr': scheduler_cfg["scheduler"].get_lr()[0]})

@@ -365,7 +365,12 @@ class NormTrainer:
             self.bar_obj.setup_train(total=len(train_loader))
             # tqdm_obj = tqdm(total=len(train_loader))
             self.bar_obj.set_description_train("epoch %s" % str(self.current_epoch))
-
+        if hasattr(model, 'sync_step'):
+            model.sync_step(
+                global_step=self.global_step,
+                forward_step=self.forward_step,
+                global_epoch=self.current_epoch
+            )
         while not self.train_stop:
 
             for batch_idx, batch in enumerate(train_loader):
@@ -399,12 +404,12 @@ class NormTrainer:
 
                 if should_optim_step:
                     self.step_scheduler(model, scheduler_cfg, level="step", current_value=self.get_state_step()) #todo need
-                if hasattr(model, 'sync_step'):
-                    model.sync_step(
-                        global_step=self.global_step,
-                        forward_step=self.forward_step,
-                        global_epoch=self.current_epoch
-                    )
+                # if hasattr(model, 'sync_step'):
+                #     model.sync_step(
+                #         global_step=self.global_step,
+                #         forward_step=self.forward_step,
+                #         global_epoch=self.current_epoch
+                #     )
 
                 if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
                     if self.skip_val:
@@ -416,6 +421,12 @@ class NormTrainer:
                     self.save_checkpoint(self.state)
                 self.global_step += int(should_optim_step)
                 self.forward_step += 1
+                if hasattr(model, 'sync_step'):
+                    model.sync_step(
+                        global_step=self.global_step,
+                        forward_step=self.forward_step,
+                        global_epoch=self.current_epoch
+                    )
 
                 if self.fabric.is_global_zero:
                     tqdm_loges = {}
