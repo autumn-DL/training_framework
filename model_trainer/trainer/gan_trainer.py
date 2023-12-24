@@ -542,6 +542,13 @@ class GanTrainer:
                     self.save_checkpoint(self.discriminator_state, state_type='D')
                 # self.global_step += int(should_optim_step)
                 self.forward_step += 1
+                if hasattr(generator_model, 'sync_logs'):
+                    generator_model.sync_logs(
+                        model_logges=self.train_log,
+
+                    )
+
+
                 if hasattr(generator_model, 'sync_step'):
                     generator_model.sync_step(
                         global_step=self.global_step,
