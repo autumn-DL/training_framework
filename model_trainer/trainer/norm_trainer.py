@@ -115,12 +115,14 @@ class NormTrainer:
         loss = loss / self.grad_accum_steps
         self.fabric.backward(loss)
         # self.fabric.call("on_after_backward")
-
+        # todo
         # avoid gradients in stored/accumulated values -> prevents potential OOM
-        self._current_train_return = apply_to_collection(outputs, dtype=torch.Tensor, function=lambda x: x.detach())
+
         if not isinstance(outputs, torch.Tensor) and outputs.get('logges'):
             self.train_log = apply_to_collection(outputs.get('logges'), dtype=torch.Tensor,
                                                  function=lambda x: x.detach().cpu().item())
+        else:
+            self.train_log = apply_to_collection(outputs, dtype=torch.Tensor, function=lambda x: x.detach())
 
         return loss
 
@@ -171,10 +173,10 @@ class NormTrainer:
         if isinstance(configure_optim_output, PL.fabric.utilities.types.LRScheduler):
             return None, _lr_sched_defaults.update(scheduler=configure_optim_output)
 
-        # single lr scheduler config
+        # single lr scheduler config fix
         if isinstance(configure_optim_output, Mapping):
-            _lr_sched_defaults.update(configure_optim_output)
-            return None, _lr_sched_defaults
+            _lr_sched_defaults.update(configure_optim_output['lr_scheduler'])
+            return configure_optim_output['optimizer'], _lr_sched_defaults
 
         # list or tuple
         if isinstance(configure_optim_output, (list, tuple)):
@@ -371,6 +373,8 @@ class NormTrainer:
                 forward_step=self.forward_step,
                 global_epoch=self.current_epoch
             )
+        if hasattr(model, 'on_training_start'):
+            model.on_training_start()
         while not self.train_stop:
 
             for batch_idx, batch in enumerate(train_loader):
@@ -403,7 +407,8 @@ class NormTrainer:
                     self.train_one_step(model=model, batch=batch, batch_idx=batch_idx, optimizer=optimizer)
 
                 if should_optim_step:
-                    self.step_scheduler(model, scheduler_cfg, level="step", current_value=self.get_state_step()) #todo need
+                    self.step_scheduler(model, scheduler_cfg, level="step",
+                                        current_value=self.get_state_step())  # todo need
                 # if hasattr(model, 'sync_step'):
                 #     model.sync_step(
                 #         global_step=self.global_step,

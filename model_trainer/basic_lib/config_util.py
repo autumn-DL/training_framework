@@ -6,7 +6,7 @@ from typing import Optional, Union
 
 
 def load_yaml(path: str) -> dict:
-    with open(path) as f:
+    with open(path, encoding='utf8') as f:
         data = yaml.load(f, Loader=yaml.FullLoader)
     return data
 

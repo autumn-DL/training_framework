@@ -211,8 +211,8 @@ class GanTrainer:
 
         # single lr scheduler config
         if isinstance(configure_optim_output, Mapping):
-            _lr_sched_defaults.update(configure_optim_output)
-            return None, _lr_sched_defaults
+            _lr_sched_defaults.update(configure_optim_output['lr_scheduler'])
+            return configure_optim_output['optimizer'], _lr_sched_defaults
 
         # list or tuple
         if isinstance(configure_optim_output, (list, tuple)):
