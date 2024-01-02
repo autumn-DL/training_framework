@@ -44,7 +44,7 @@ def load_finetune_ckpt(model,
     model.load_state_dict(state_dict, strict=False)
 
 
-def load_pre_train_model(finetune_ckpt_path, finetune_ignored_params: list):
+def load_pre_train_model(finetune_ckpt_path, finetune_ignored_params: list, base_key: str = 'state_dict'):
     pre_train_ckpt_path = finetune_ckpt_path
     blacklist = finetune_ignored_params
     # whitelist=hparams.get('pre_train_whitelist')
@@ -62,7 +62,7 @@ def load_pre_train_model(finetune_ckpt_path, finetune_ignored_params: list):
         #     self.model.check_category(ckpt.get('category'))
 
         state_dict = {}
-        for i in ckpt['state_dict']:
+        for i in ckpt[base_key]:
             # if 'diffusion' in i:
             # if i in rrrr:
             #     continue
@@ -75,8 +75,8 @@ def load_pre_train_model(finetune_ckpt_path, finetune_ignored_params: list):
             if skip:
                 continue
 
-            state_dict[i] = ckpt['state_dict'][i]
-            print(i)
+            state_dict[i] = ckpt[base_key][i]
+            print('load key:', i)
         return state_dict
     else:
         raise RuntimeError("")
