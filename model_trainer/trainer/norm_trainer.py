@@ -299,7 +299,7 @@ class NormTrainer:
         remove_list, save_name, work_dir = self.get_local_ckpt_name()
 
         self.fabric.save(work_dir / save_name, save_state)
-        print(f'model {save_name} svae')
+        print(f'model {save_name} save')
         self.remove_ckpt(remove_list=remove_list, work_dir=work_dir)
 
     def fit(
