@@ -80,6 +80,7 @@ class NormTrainer:
         self.auto_continue = auto_continue
         self.save_in_epoch_end = save_in_epoch_end
         self.keep_ckpt_num = keep_ckpt_num
+        self.last_val_step = 0
 
         self._current_train_return = {}
         self.train_log = {}
@@ -361,7 +362,7 @@ class NormTrainer:
             scheduler_cfg: Optional[
                 Mapping[str, Union[PL.fabric.utilities.types.LRScheduler, bool, str, int]]] = None,
     ):  # todo
-
+        self.last_val_step=self.get_state_step()
         if self.fabric.is_global_zero:
             # train_loader = tqdm(train_loader)
             self.bar_obj.setup_train(total=len(train_loader))
@@ -418,12 +419,22 @@ class NormTrainer:
                 #         global_epoch=self.current_epoch
                 #     )
 
+                # self.global_step += int(should_optim_step)
+                # self.forward_step += 1
+                # if hasattr(model, 'sync_step'):
+                #     model.sync_step(
+                #         global_step=self.global_step,
+                #         forward_step=self.forward_step,
+                #         global_epoch=self.current_epoch
+                #     )
+
                 if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
                     if self.skip_val:
                         self.skip_val = False
                     else:
                         self.val_loop(model=model, val_loader=val_loader)
                         can_save = True
+                        self.last_val_step = self.get_state_step()
                 if self.fabric.is_global_zero and can_save:
                     self.save_checkpoint(self.state)
                 self.global_step += int(should_optim_step)
@@ -461,6 +472,14 @@ class NormTrainer:
             self.current_epoch += 1
             if self.save_in_epoch_end and not self.get_state_step() % self.val_step and self.fabric.is_global_zero == 0:
                 self.save_checkpoint(self.state)
+        if self.get_state_step() % self.val_step == 0and self.get_state_step()== self.max_steps and self.fabric.is_global_zero and not self.without_val:  # todo need add
+            if self.last_val_step!=self.get_state_step():
+
+
+                self.val_loop(model=model, val_loader=val_loader)
+                self.save_checkpoint(self.state)
+                self.last_val_step=self.get_state_step()
+
 
         if self.fabric.is_global_zero:
             self.bar_obj.close_train()
