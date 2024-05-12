@@ -115,7 +115,8 @@ class GanTrainer:
             self.bar_obj = Adp_bar(bar_type=progress_bar_type)
         else:
             self.bar_obj = None
-
+        if training_strategy_arg is None:
+            training_strategy_arg = {}
         if training_strategy is None and grad_accum_steps == 1:
             self.training_strategy = NormGanTrainStrategy()
         elif training_strategy is None and grad_accum_steps != 1:
@@ -526,7 +527,9 @@ class GanTrainer:
                 #         global_epoch=self.current_epoch
                 #     )
 
-                if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
+                if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val or self.get_state_step() -1 == 0:  # todo need add
+                    if self.get_state_step() -1 == 0:
+                        self.skip_val = True
                     if self.last_val_step == self.get_state_step():
                         self.skip_val = True
                     if self.skip_val:

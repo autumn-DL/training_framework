@@ -397,10 +397,12 @@ class NormTrainer:
                     # self.fabric.call("on_before_optimizer_step", optimizer, 0)
 
                     # optimizer step runs train step internally through closure
-                    if hasattr(model, 'before_opt'):
-                        model.before_opt()
+                    # if hasattr(model, 'before_opt'):
+                    #     model.before_opt()
                     optimizer.step(partial(self.train_one_step, model=model, batch=batch, batch_idx=batch_idx,
                                            optimizer=optimizer))
+                    if hasattr(model, 'before_opt'):
+                        model.before_opt()
                     # self.fabric.call("on_before_zero_grad", optimizer)
 
                     optimizer.zero_grad()
@@ -432,9 +434,10 @@ class NormTrainer:
                     if self.skip_val:
                         self.skip_val = False
                     else:
-                        self.val_loop(model=model, val_loader=val_loader)
-                        can_save = True
-                        self.last_val_step = self.get_state_step()
+                        if self.last_val_step != self.get_state_step():
+                            self.val_loop(model=model, val_loader=val_loader)
+                            can_save = True
+                            self.last_val_step = self.get_state_step()
                 if self.fabric.is_global_zero and can_save:
                     self.save_checkpoint(self.state)
                 self.global_step += int(should_optim_step)
