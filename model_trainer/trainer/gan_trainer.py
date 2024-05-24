@@ -111,6 +111,12 @@ class GanTrainer:
         self.skip_val = True
         self.ModelSummary = ModelSummary(max_depth=max_depth)
         self.last_val_step = 0
+        if self.precision == '16-mixed':
+            self.disable_closure = True
+            print("use 16-mixed disable closure")
+        else:
+            self.disable_closure = False
+
         if self.fabric.is_global_zero:
             self.bar_obj = Adp_bar(bar_type=progress_bar_type)
         else:
@@ -127,7 +133,8 @@ class GanTrainer:
                 pkg = ".".join(training_strategy.split(".")[:-1])
                 cls_name = training_strategy.split(".")[-1]
                 task_cls = getattr(importlib.import_module(pkg), cls_name)
-                training_strategy_arg.update({'grad_accum_steps': grad_accum_steps})
+                training_strategy_arg.update(
+                    {'grad_accum_steps': grad_accum_steps, 'disable_closure': self.disable_closure})
                 self.training_strategy = task_cls(**training_strategy_arg)
             else:
                 self.training_strategy = training_strategy(**training_strategy_arg)
@@ -257,7 +264,7 @@ class GanTrainer:
         if self.fabric.is_global_zero:
             if state_type == 'G':
                 print(f'find G_ckpt {ckpt_path}')
-            if state_type == 'G':
+            if state_type == 'D':
                 print(f'find D_ckpt {ckpt_path}')
         checkpoint = torch.load(ckpt_path)
 
@@ -471,7 +478,10 @@ class GanTrainer:
                 forward_step=self.forward_step,
                 global_epoch=self.current_epoch
             )
-
+        if hasattr(generator_model, 'on_training_start'):
+            generator_model.on_training_start()
+        if hasattr(discriminator_model, 'on_training_start'):
+            discriminator_model.on_training_start()
         while not self.train_stop:
 
             for batch_idx, batch in enumerate(train_loader):
@@ -527,8 +537,11 @@ class GanTrainer:
                 #         global_epoch=self.current_epoch
                 #     )
 
-                if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val or self.get_state_step() -1 == 0:  # todo need add
-                    if self.get_state_step() -1 == 0:
+                if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val or self.get_state_step() - 1 == 0 or self.last_val_step == 0:  # todo need add
+                    if self.last_val_step == 0:
+                        self.skip_val = True
+                        self.last_val_step = self.get_state_step()
+                    if self.get_state_step() - 1 == 0:
                         self.skip_val = True
                     if self.last_val_step == self.get_state_step():
                         self.skip_val = True
@@ -550,7 +563,6 @@ class GanTrainer:
                         model_logges=self.train_log,
 
                     )
-
 
                 if hasattr(generator_model, 'sync_step'):
                     generator_model.sync_step(

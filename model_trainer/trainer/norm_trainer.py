@@ -97,6 +97,12 @@ class NormTrainer:
         else:
             self.bar_obj = None
 
+        if self.precision == '16-mixed':
+            self.disable_closure = True
+            print("use 16-mixed disable closure")
+        else:
+            self.disable_closure = False
+
     def get_state_step(self):
         if self.internal_state_step_type == 'opt_step':
             return self.global_step
@@ -399,8 +405,15 @@ class NormTrainer:
                     # optimizer step runs train step internally through closure
                     # if hasattr(model, 'before_opt'):
                     #     model.before_opt()
-                    optimizer.step(partial(self.train_one_step, model=model, batch=batch, batch_idx=batch_idx,
-                                           optimizer=optimizer))
+
+                    if self.disable_closure:
+                        self.train_one_step(model=model, batch=batch, batch_idx=batch_idx, optimizer=optimizer)
+                        optimizer.step()
+                    else:
+                        optimizer.step(partial(self.train_one_step, model=model, batch=batch, batch_idx=batch_idx,
+                                               optimizer=optimizer))
+
+
                     if hasattr(model, 'before_opt'):
                         model.before_opt()
                     # self.fabric.call("on_before_zero_grad", optimizer)
