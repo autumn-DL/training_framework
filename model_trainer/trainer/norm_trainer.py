@@ -97,7 +97,7 @@ class NormTrainer:
         else:
             self.bar_obj = None
 
-        if self.precision == '16-mixed':
+        if self.precision == '16':
             self.disable_closure = True
             print("use 16-mixed disable closure")
         else:

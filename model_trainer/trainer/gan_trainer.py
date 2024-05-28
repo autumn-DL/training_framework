@@ -111,7 +111,7 @@ class GanTrainer:
         self.skip_val = True
         self.ModelSummary = ModelSummary(max_depth=max_depth)
         self.last_val_step = 0
-        if self.precision == '16-mixed':
+        if self.precision == '16':
             self.disable_closure = True
             print("use 16-mixed disable closure")
         else:
