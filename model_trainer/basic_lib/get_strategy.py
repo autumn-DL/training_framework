@@ -1,5 +1,5 @@
 import torch
-from lightning.fabric.accelerators import ACCELERATOR_REGISTRY
+# from lightning.fabric.accelerators import ACCELERATOR_REGISTRY
 from lightning.fabric.strategies import STRATEGY_REGISTRY
 
 from model_trainer.basic_lib.obj_loader import filter_kwargs
@@ -13,10 +13,12 @@ def get_strategy(
     precision=None,
 ):
     from lightning.fabric.utilities.device_parser import _determine_root_gpu_device
-    from lightning.pytorch.accelerators import AcceleratorRegistry
-    from lightning.pytorch.accelerators.cuda import CUDAAccelerator
-    from lightning.pytorch.accelerators.mps import MPSAccelerator
-    from lightning.pytorch.strategies import  StrategyRegistry
+    # from lightning.fabric.accelerators import AcceleratorRegistry
+    from lightning.fabric.accelerators import ACCELERATOR_REGISTRY
+    from lightning.fabric.accelerators.cuda import CUDAAccelerator
+    from lightning.fabric.accelerators.mps import MPSAccelerator
+    # from lightning.fabric.strategies import  StrategyRegistry
+    from lightning.fabric.strategies import STRATEGY_REGISTRY
     from lightning.fabric.strategies import Strategy, SingleDeviceStrategy
     # from lightning.pytorch.trainer.connectors import accelerator_connector
     from lightning.fabric import connector
@@ -27,8 +29,8 @@ def get_strategy(
             self._registered_strategies = STRATEGY_REGISTRY.available_strategies()
             self._registered_accelerators = ACCELERATOR_REGISTRY.available_accelerators()
             # super().__init__()
-            self._registered_strategies = StrategyRegistry.available_strategies()
-            self._accelerator_types = AcceleratorRegistry.available_accelerators()
+            self._registered_strategies = STRATEGY_REGISTRY.available_strategies()
+            self._accelerator_types = ACCELERATOR_REGISTRY.available_accelerators()
             self._parallel_devices = []
             self._check_config_and_set_final_flags(
                 strategy=strategy["name"],
@@ -54,10 +56,10 @@ def get_strategy(
         def _init_strategy(self) -> None:
             assert isinstance(self._strategy_flag, (str, Strategy))
             if isinstance(self._strategy_flag, str):
-                if self._strategy_flag not in StrategyRegistry:
-                    available_names = ", ".join(sorted(StrategyRegistry.available_strategies())) or "none"
+                if self._strategy_flag not in STRATEGY_REGISTRY:
+                    available_names = ", ".join(sorted(STRATEGY_REGISTRY.available_strategies())) or "none"
                     raise KeyError(f"Invalid strategy name {strategy['name']}. Available names: {available_names}")
-                data = StrategyRegistry[self._strategy_flag]
+                data = STRATEGY_REGISTRY[self._strategy_flag]
                 params = {}
                 # Replicate additional logic for _choose_strategy when dealing with single device strategies
                 if issubclass(data["strategy"], SingleDeviceStrategy):
@@ -92,7 +94,7 @@ def get_strategy(
 
 if __name__=='__main__':
     import lightning as PL
-    test=get_strategy(precision='bf16')
+    test=get_strategy(precision='bf16',devices=1,strategy={"name": "ddp"},accelerator="gpu")
     PL.Fabric(
 
         precision='bf16',
