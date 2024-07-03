@@ -443,15 +443,25 @@ class NormTrainer:
                 #         global_epoch=self.current_epoch
                 #     )
 
-                if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val:  # todo need add
-                    if self.skip_val:
-                        self.skip_val = False
+                if self.get_state_step() % self.val_step == 0  and not self.without_val:  # todo need add
+                    if self.fabric.is_global_zero:
+                        if self.skip_val:
+                            self.skip_val = False
+                        else:
+                            if self.last_val_step != self.get_state_step():
+                                self.val_loop(model=model, val_loader=val_loader)
+                                can_save = True
+                                self.last_val_step = self.get_state_step()
                     else:
-                        if self.last_val_step != self.get_state_step():
-                            self.val_loop(model=model, val_loader=val_loader)
-                            can_save = True
-                            self.last_val_step = self.get_state_step()
-                if self.fabric.is_global_zero and can_save:
+                        if self.skip_val:
+                            self.skip_val = False
+                        else:
+                            if self.last_val_step != self.get_state_step():
+                                # self.fake_val_loop(model=model, val_loader=val_loader)
+                                can_save = True
+                                self.last_val_step = self.get_state_step()
+
+                if  can_save:
                     self.save_checkpoint(self.state)
                 self.global_step += int(should_optim_step)
                 self.forward_step += 1
@@ -486,9 +496,9 @@ class NormTrainer:
             if self.fabric.is_global_zero:
                 self.bar_obj.rest_train()
             self.current_epoch += 1
-            if self.save_in_epoch_end and not self.get_state_step() % self.val_step and self.fabric.is_global_zero == 0:
+            if self.save_in_epoch_end and not self.get_state_step() % self.val_step :
                 self.save_checkpoint(self.state)
-        if self.get_state_step() % self.val_step == 0and self.get_state_step()== self.max_steps and self.fabric.is_global_zero and not self.without_val:  # todo need add
+        if self.get_state_step() % self.val_step == 0and self.get_state_step()== self.max_steps  and not self.without_val:  # todo need add
             if self.last_val_step!=self.get_state_step():
 
 
@@ -500,6 +510,30 @@ class NormTrainer:
         if self.fabric.is_global_zero:
             self.bar_obj.close_train()
             self.bar_obj.close_rich()
+    @torch.no_grad()
+    def fake_val_loop(
+            self,
+            model: PL.LightningModule,
+            val_loader: torch.utils.data.DataLoader,
+            limit_val_batches: int = None
+    ):
+        if limit_val_batches is None:
+            limit_val_batches = self.limit_val_batches
+        model.eval()
+        # tqdm_obj = tqdm(total=len(val_loader), leave=False)
+        # tqdm_obj.set_description("val_start")
+
+        for batch_idx, batch in enumerate(val_loader):
+            if limit_val_batches is not None:
+                if batch_idx >= limit_val_batches:
+                    break
+            self.val_one_step(model=model, batch=batch, batch_idx=batch_idx)
+
+
+        model.train()
+
+
+
 
     @torch.no_grad()
     def val_loop(

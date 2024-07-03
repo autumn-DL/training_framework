@@ -1,6 +1,6 @@
 import torch
 # from lightning.fabric.accelerators import ACCELERATOR_REGISTRY
-from lightning.fabric.strategies import STRATEGY_REGISTRY
+# from lightning.fabric.strategies import STRATEGY_REGISTRY
 
 from model_trainer.basic_lib.obj_loader import filter_kwargs
 

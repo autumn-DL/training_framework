@@ -537,23 +537,40 @@ class GanTrainer:
                 #         global_epoch=self.current_epoch
                 #     )
 
-                if self.get_state_step() % self.val_step == 0 and self.fabric.is_global_zero and not self.without_val or self.get_state_step() - 1 == 0 or self.last_val_step == 0:  # todo need add
-                    if self.last_val_step == 0:
-                        self.skip_val = True
-                        self.last_val_step = self.get_state_step()
-                    if self.get_state_step() - 1 == 0:
-                        self.skip_val = True
-                    if self.last_val_step == self.get_state_step():
-                        self.skip_val = True
-                    if self.skip_val:
-                        self.skip_val = False
+                if self.get_state_step() % self.val_step == 0 and not self.without_val or self.get_state_step() - 1 == 0 or self.last_val_step == 0:  # todo need add
+                    if self.fabric.is_global_zero:
+                        if self.last_val_step == 0:
+                            self.skip_val = True
+                            self.last_val_step = self.get_state_step()
+                        if self.get_state_step() - 1 == 0:
+                            self.skip_val = True
+                        if self.last_val_step == self.get_state_step():
+                            self.skip_val = True
+                        if self.skip_val:
+                            self.skip_val = False
+                        else:
+                            self.val_loop(model=generator_model, val_loader=val_loader)
+                            generator_model.train()
+                            discriminator_model.train()
+                            can_save = True
+                            self.last_val_step = self.get_state_step()
                     else:
-                        self.val_loop(model=generator_model, val_loader=val_loader)
-                        generator_model.train()
-                        discriminator_model.train()
-                        can_save = True
-                        self.last_val_step = self.get_state_step()
-                if self.fabric.is_global_zero and can_save:
+                        if self.last_val_step == 0:
+                            self.skip_val = True
+                            self.last_val_step = self.get_state_step()
+                        if self.get_state_step() - 1 == 0:
+                            self.skip_val = True
+                        if self.last_val_step == self.get_state_step():
+                            self.skip_val = True
+                        if self.skip_val:
+                            self.skip_val = False
+                        else:
+                            # self.val_loop(model=generator_model, val_loader=val_loader)
+                            generator_model.train()
+                            discriminator_model.train()
+                            can_save = True
+                            self.last_val_step = self.get_state_step()
+                if  can_save:
                     self.save_checkpoint(self.generator_state, state_type='G')
                     self.save_checkpoint(self.discriminator_state, state_type='D')
                 # self.global_step += int(should_optim_step)
@@ -595,9 +612,9 @@ class GanTrainer:
                     self.bar_obj.update_train()
 
             # self.step_scheduler(model, scheduler_cfg, level="epoch", current_value=self.current_epoch)  # todo
-            self.step_scheduler(discriminator_model, discriminator_schedulers, level="step",
+            self.step_scheduler(discriminator_model, discriminator_schedulers, level="epoch",
                                 current_value=self.get_state_step())
-            self.step_scheduler(generator_model, generator_schedulers, level="step",
+            self.step_scheduler(generator_model, generator_schedulers, level="epoch",
                                 current_value=self.get_state_step())
 
             if self.max_epochs is not None:
@@ -607,7 +624,7 @@ class GanTrainer:
             if self.fabric.is_global_zero:
                 self.bar_obj.rest_train()
             self.current_epoch += 1
-            if self.save_in_epoch_end and not self.get_state_step() % self.val_step and self.fabric.is_global_zero == 0:
+            if self.save_in_epoch_end and not self.get_state_step() % self.val_step :
                 self.save_checkpoint(self.generator_state, state_type='G')
                 self.save_checkpoint(self.discriminator_state, state_type='D')
 
