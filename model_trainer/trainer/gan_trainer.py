@@ -580,7 +580,11 @@ class GanTrainer:
                         model_logges=self.train_log,
 
                     )
+                if hasattr(generator_model, 'reduce_logs'):
+                    self.train_log=generator_model.reduce_logs(
+                        model_logges=self.train_log,
 
+                    )
                 if hasattr(generator_model, 'sync_step'):
                     generator_model.sync_step(
                         global_step=self.global_step,
@@ -671,6 +675,7 @@ class GanTrainer:
 
         if hasattr(model, 'on_sum_validation_logs'):
             model.on_sum_validation_logs(self.val_log)
+        self.val_logs=[]
 
     def step_scheduler(
             self,

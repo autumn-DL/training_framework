@@ -574,6 +574,7 @@ class NormTrainer:
 
         if hasattr(model, 'on_sum_validation_logs'):
             model.on_sum_validation_logs(self.val_log)
+        self.val_logs=[]
 
     def step_scheduler(
             self,
