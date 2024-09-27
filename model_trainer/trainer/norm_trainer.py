@@ -290,6 +290,7 @@ class NormTrainer:
             if search:
                 step = int(search.group(0)[6:])
                 ckpt_list.append((step, str(ckpt.name)))
+        ckpt_list=self.clean_forever_ckpt(ckpt_list)
         if len(ckpt_list) < self.keep_ckpt_num:
             return remove_list, f'model_ckpt_steps_{str(self.get_state_step())}.ckpt', work_dir
         num_remove = len(ckpt_list) + 1 - self.keep_ckpt_num
