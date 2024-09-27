@@ -40,6 +40,7 @@ class NormTrainer:
                  checkpoint_dir: str = "./checkpoints",
                  auto_continue: bool = True,
                  val_step: int = 2000,
+                 forever_ckpt_step: Optional[int] = None,
                  ignore_missing_ckpt_key: bool = False,
                  save_in_epoch_end: bool = False,
                  keep_ckpt_num: Optional[int] = 5,
@@ -61,6 +62,7 @@ class NormTrainer:
             callbacks=callbacks,
             loggers=loggers,
         )
+        self.forever_ckpt_step=forever_ckpt_step
         self.internal_state_step_type = internal_state_step_type
         self.show_opt_step = show_opt_step
         self.show_forward_step = show_forward_step
@@ -227,7 +229,8 @@ class NormTrainer:
         if self.fabric.is_global_zero:
             print(f'find ckpt {ckpt_path}')
         checkpoint = torch.load(ckpt_path)
-
+        if hasattr(state['model'],'on_load_model_state_dict'):
+            state=state['model'].on_load_model_state_dict(state=state)
         invalid_keys = [k for k in state if k not in checkpoint]
         if invalid_keys:
 
@@ -250,7 +253,8 @@ class NormTrainer:
                     obj.load_state_dict(checkpoint.pop(name))
             else:
                 state[name] = checkpoint.pop(name)
-
+        if hasattr(state['model'],'on_load_model_state_dict_end'):
+            state['model'].on_load_model_state_dict_end(state=state)
         self.global_step = checkpoint.pop("global_step")
         self.current_epoch = checkpoint.pop("current_epoch")
         self.forward_step = checkpoint.pop("forward_step")
@@ -262,6 +266,16 @@ class NormTrainer:
             if checkpoint:
                 raise RuntimeError(f"Unused Checkpoint Values: {checkpoint}")
         print(f'load  ckpt {ckpt_path}')
+    def clean_forever_ckpt(self,rm_list):
+        if self.forever_ckpt_step is None:
+            return rm_list
+        rmlx=[]
+        for i in rm_list:
+            if int(i[0])%self.forever_ckpt_step==0:
+                pass
+            else:
+                rmlx.append(i)
+        return rmlx
 
     def get_local_ckpt_name(self):
 
@@ -281,6 +295,7 @@ class NormTrainer:
         num_remove = len(ckpt_list) + 1 - self.keep_ckpt_num
         ckpt_list.sort(key=lambda x: x[0])
         remove_list = ckpt_list[:num_remove]
+        remove_list=self.clean_forever_ckpt(remove_list)
         return remove_list, f'model_ckpt_steps_{str(self.get_state_step())}.ckpt', work_dir
         # for i in ckpt_list:
         # todo
@@ -289,7 +304,8 @@ class NormTrainer:
         for i in remove_list:
             ojb_path = work_dir / i[1]
             print(f'remove ckpt {str(ojb_path)}')
-            ojb_path.unlink(missing_ok=True)
+            if self.fabric.is_global_zero:
+                ojb_path.unlink(missing_ok=True)
 
     def save_checkpoint(self, state: dict):
         save_state = {}
@@ -303,6 +319,8 @@ class NormTrainer:
                 save_state.update({i: state[i].state_dict()})
             else:
                 save_state.update({i: state[i]})
+        if hasattr(state['model'], 'on_save_model_state_dict'):
+            save_state=state['model'].on_save_model_state_dict(state=save_state)
         remove_list, save_name, work_dir = self.get_local_ckpt_name()
 
         self.fabric.save(work_dir / save_name, save_state)
@@ -544,6 +562,9 @@ class NormTrainer:
     ):
         if limit_val_batches is None:
             limit_val_batches = self.limit_val_batches
+
+        if hasattr(model, "on_val_start"):
+            model.on_val_start()
         model.eval()
         # tqdm_obj = tqdm(total=len(val_loader), leave=False)
         # tqdm_obj.set_description("val_start")
@@ -564,7 +585,8 @@ class NormTrainer:
         # tqdm_obj.display()
         # tqdm_obj.close()
         self.bar_obj.close_val()
-
+        if hasattr(model, "on_val_end"):
+            model.on_val_end()
         if hasattr(model, "on_validation_end_logs"):
             outlog = model.on_validation_end_logs(self.val_logs)
             if outlog is None:
