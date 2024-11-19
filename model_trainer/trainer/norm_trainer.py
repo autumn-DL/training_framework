@@ -49,10 +49,16 @@ class NormTrainer:
                  show_forward_step: bool = True,
                  internal_state_step_type: Literal['opt_step', 'forward_step'] = 'opt_step',
                  progress_bar_type: Literal['tqdm', 'rich'] = 'tqdm',
+                 patch_lr_scheduler: bool = True,
+                 skip_lr_scheduler_save: bool = True,
+                 skip_lr_scheduler_load: bool = True,
 
                  ):
 
         self.state = None
+        self.patch_lr_scheduler=patch_lr_scheduler
+        self.skip_lr_scheduler_save=skip_lr_scheduler_save
+        self.skip_lr_scheduler_load=skip_lr_scheduler_load
         self.fabric = PL.Fabric(
             accelerator=accelerator,
             strategy=strategy,
@@ -183,7 +189,7 @@ class NormTrainer:
             return None, _lr_sched_defaults.update(scheduler=configure_optim_output)
 
         # single lr scheduler config fix
-        if isinstance(configure_optim_output, Mapping):
+        if isinstance(configure_optim_output, Mapping):  # 这里看起来不对劲
             _lr_sched_defaults.update(configure_optim_output['lr_scheduler'])
             return configure_optim_output['optimizer'], _lr_sched_defaults
 
@@ -220,6 +226,13 @@ class NormTrainer:
     ) -> None:
         """Loads the given state into the model."""
         module.load_state_dict(state_dict, strict=strict)
+    def patch_lr_scheduler_opt(self,state,lr_scheduler):
+        if not self.patch_lr_scheduler:
+            return lr_scheduler
+        lr_schedulerR=state['scheduler']['scheduler'].optimizer
+        lr_scheduler['scheduler'].optimizer=lr_schedulerR
+        return lr_scheduler
+
 
     def load_ckpt(self, ckpt_save_path, state):
 
@@ -252,7 +265,15 @@ class NormTrainer:
                 else:
                     obj.load_state_dict(checkpoint.pop(name))
             else:
-                state[name] = checkpoint.pop(name)
+                if name=='scheduler':
+                    if self.skip_lr_scheduler_load:
+                        checkpoint.pop(name)
+                        continue
+                    sc=self.patch_lr_scheduler_opt(state,checkpoint[name])
+                    state[name]=sc
+                    checkpoint.pop(name)
+                else:
+                    state[name] = checkpoint.pop(name)
         if hasattr(state['model'],'on_load_model_state_dict_end'):
             state['model'].on_load_model_state_dict_end(state=state)
         self.global_step = checkpoint.pop("global_step")
@@ -266,6 +287,7 @@ class NormTrainer:
             if checkpoint:
                 raise RuntimeError(f"Unused Checkpoint Values: {checkpoint}")
         print(f'load  ckpt {ckpt_path}')
+        del checkpoint
     def clean_forever_ckpt(self,rm_list):
         if self.forever_ckpt_step is None:
             return rm_list
@@ -318,6 +340,11 @@ class NormTrainer:
                 save_state.update({i: state[i].state_dict()})
             elif i == 'optim':
                 save_state.update({i: state[i].state_dict()})
+            elif i == 'scheduler':
+                if self.skip_lr_scheduler_save:
+                    save_state.update({i: {}})
+                    continue
+                save_state.update({i: state[i]})
             else:
                 save_state.update({i: state[i]})
         if hasattr(state['model'], 'on_save_model_state_dict'):

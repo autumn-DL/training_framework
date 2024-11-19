@@ -61,11 +61,21 @@ class GanTrainer:
                  internal_state_step_type: Literal[
                      'opt_step', 'forward_step', 'generator_opt_step'] = 'generator_opt_step',
                  progress_bar_type: Literal['tqdm', 'rich'] = 'tqdm',
-                 batch_size: Optional[int] = None,
+                 # batch_size: Optional[int] = None,
                  training_strategy: Optional = None,
                  training_strategy_arg: Optional[dict] = None,
+                 patch_lr_scheduler: bool = True,
+                 skip_lr_scheduler_save: bool = True,
+                 skip_lr_scheduler_load: bool = True,
+                 forever_ckpt_step: Optional[int] = None,
 
                  ):
+        self.forever_ckpt_step = forever_ckpt_step
+
+        self.patch_lr_scheduler=patch_lr_scheduler
+        self.skip_lr_scheduler_save=skip_lr_scheduler_save
+        self.skip_lr_scheduler_load=skip_lr_scheduler_load
+
         self.show_generator_opt_step = show_generator_opt_step
         self.discriminator_state = None
         self.generator_state = None
@@ -255,7 +265,12 @@ class GanTrainer:
     ) -> None:
         """Loads the given state into the model."""
         module.load_state_dict(state_dict, strict=strict)
-
+    def patch_lr_scheduler_opt(self,state,lr_scheduler):
+        if not self.patch_lr_scheduler:
+            return lr_scheduler
+        lr_schedulerR=state['scheduler']['scheduler'].optimizer
+        lr_scheduler['scheduler'].optimizer=lr_schedulerR
+        return lr_scheduler
     def load_ckpt(self, ckpt_save_path, state, state_type: Literal['G', 'D']):
 
         ckpt_path = gan_get_latest_checkpoint_path(ckpt_save_path, state_type=state_type)
@@ -267,7 +282,8 @@ class GanTrainer:
             if state_type == 'D':
                 print(f'find D_ckpt {ckpt_path}')
         checkpoint = torch.load(ckpt_path)
-
+        if hasattr(state['model'],'on_load_model_state_dict'):
+            state=state['model'].on_load_model_state_dict(state=state)
         invalid_keys = [k for k in state if k not in checkpoint]
         if invalid_keys:
 
@@ -289,7 +305,17 @@ class GanTrainer:
                 else:
                     obj.load_state_dict(checkpoint.pop(name))
             else:
-                state[name] = checkpoint.pop(name)
+                if name == 'scheduler':
+                    if self.skip_lr_scheduler_load:
+                        checkpoint.pop(name)
+                        continue
+                    sc = self.patch_lr_scheduler_opt(state, checkpoint[name])
+                    state[name] = sc
+                    checkpoint.pop(name)
+                else:
+                    state[name] = checkpoint.pop(name)
+        if hasattr(state['model'],'on_load_model_state_dict_end'):
+            state['model'].on_load_model_state_dict_end(state=state)
         if state_type == 'G':
             self.global_step = checkpoint.pop("global_step")
             self.current_epoch = checkpoint.pop("current_epoch")
@@ -319,6 +345,16 @@ class GanTrainer:
             if checkpoint:
                 raise RuntimeError(f"Unused Checkpoint Values: {checkpoint}")
         print(f'load  ckpt {ckpt_path}')
+    def clean_forever_ckpt(self,rm_list):
+        if self.forever_ckpt_step is None:
+            return rm_list
+        rmlx=[]
+        for i in rm_list:
+            if int(i[0])%self.forever_ckpt_step==0:
+                pass
+            else:
+                rmlx.append(i)
+        return rmlx
 
     def get_local_ckpt_name(self, state_type: Literal['G', 'D']):
 
@@ -337,11 +373,13 @@ class GanTrainer:
             if search:
                 step = int(search.group(0)[6:])
                 ckpt_list.append((step, str(ckpt.name)))
+        ckpt_list = self.clean_forever_ckpt(ckpt_list)
         if len(ckpt_list) < self.keep_ckpt_num:
             return remove_list, f'model_ckpt_steps_{str(self.get_state_step())}.ckpt', work_dir
         num_remove = len(ckpt_list) + 1 - self.keep_ckpt_num
         ckpt_list.sort(key=lambda x: x[0])
         remove_list = ckpt_list[:num_remove]
+        remove_list = self.clean_forever_ckpt(remove_list)
         return remove_list, f'model_ckpt_steps_{str(self.get_state_step())}.ckpt', work_dir
         # for i in ckpt_list:
         # todo
@@ -363,8 +401,15 @@ class GanTrainer:
                 save_state.update({i: state[i].state_dict()})
             elif i == 'optim':
                 save_state.update({i: state[i].state_dict()})
+            elif i == 'scheduler':
+                if self.skip_lr_scheduler_save:
+                    save_state.update({i: {}})
+                    continue
+                save_state.update({i: state[i]})
             else:
                 save_state.update({i: state[i]})
+        if hasattr(state['model'], 'on_save_model_state_dict'):
+            save_state=state['model'].on_save_model_state_dict(state=save_state)
         remove_list, save_name, work_dir = self.get_local_ckpt_name(state_type=state_type)
 
         self.fabric.save(work_dir / save_name, save_state)
@@ -524,6 +569,8 @@ class GanTrainer:
                                                       discriminator_schedulers=discriminator_schedulers,
                                                       batch=batch,
                                                       batch_idx=batch_idx)
+                # if hasattr(generator_model, 'before_opt'):  对于 gan要在 training_strategy 里面 写
+                #     generator_model.before_opt()
                 # if hasattr(generator_model, 'sync_step'):
                 #     generator_model.sync_step(
                 #         global_step=self.global_step,

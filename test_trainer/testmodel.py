@@ -76,12 +76,13 @@ class MNISTModule(L.LightningModule):
         # optim = torch.optim.Adadelta(self.parameters(), lr=1e-2, )
         # optim = torch.optim.(self.parameters(), lr=1e-2, )
         # optim = torch.optim.Adam(self.parameters(), lr=1e-4, )
-        return optim, {
-            "scheduler": torch.optim.lr_scheduler.StepLR(optim, step_size=1000, gamma=0.9),
+        from lr_scheduler.scheduler import WarmupLR
+        return {'lr_scheduler':{
+            "scheduler": WarmupLR(optim),
             "monitor": "val_accuracy",
             "interval": "step",
             "frequency": 1,
-        }
+        },'optimizer': optim}
 
     def validation_step(self, *args, **kwargs):
         time.sleep(0.1)
@@ -114,19 +115,19 @@ def train(model):
     accelerator = 'gpu'
 
     trainer = norm_trainer.NormTrainer(
-        accelerator=accelerator, devices="auto", limit_train_batches=500, limit_val_batches=10, max_epochs=130,
+        accelerator=accelerator, devices="auto", limit_train_batches=500, limit_val_batches=10, max_epochs=260,
         loggers=TensorBoardLogger(
-            save_dir=str('./ckpy/py2'),
+            save_dir=str('./ckpy/py3'),
             name='lightning_logs',
             version='lastest',
 
-        ), checkpoint_dir='./ckpy/py2',progress_bar_type='tqdm'
+        ), checkpoint_dir='./ckpy/py3',progress_bar_type='tqdm',forever_ckpt_step=4000
     )
     trainer.fit(model)
 
 
 def run():
-    code_saver(['run_test.py', 'model_trainer'], './ckpy/py2')
+    code_saver(['run_test.py', 'model_trainer'], './ckpy/py3')
     train(MNISTModule())
 
 

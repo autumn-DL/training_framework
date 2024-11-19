@@ -45,7 +45,8 @@ class ModelSummary:
             self.summarize(summary_data, total_parameters, trainable_parameters, model_size, **self._summarize_kwargs)
 
     def _summary(self, trainer: "pl.Trainer", pl_module: "pl.LightningModule") -> Union[DeepSpeedSummary, Summary]:
-        from lightning.pytorch.strategies.deepspeed import DeepSpeedStrategy
+        # from lightning.pytorch.strategies.deepspeed import DeepSpeedStrategy
+        from lightning.fabric.strategies.deepspeed import DeepSpeedStrategy
 
         if isinstance(trainer.strategy, DeepSpeedStrategy) and trainer.strategy.zero_stage_3:
             return DeepSpeedSummary(pl_module, max_depth=self._max_depth)
