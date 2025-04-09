@@ -241,7 +241,7 @@ class NormTrainer:
             return
         if self.fabric.is_global_zero:
             print(f'find ckpt {ckpt_path}')
-        checkpoint = torch.load(ckpt_path)
+        checkpoint = torch.load(ckpt_path,map_location='cpu')
         if hasattr(state['model'],'on_load_model_state_dict'):
             state=state['model'].on_load_model_state_dict(state=state)
         invalid_keys = [k for k in state if k not in checkpoint]
@@ -256,7 +256,7 @@ class NormTrainer:
                     that does not exist in the loaded checkpoint.'''
                 )
 
-        for name, obj in state.copy().items():
+        for name, obj in state.items():
             if name not in checkpoint:
                 continue
             if isinstance(obj, _Stateful):

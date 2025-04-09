@@ -55,11 +55,12 @@ def build_optimizer(model, config):
     assert optimizer_args['optimizer_cls'] != ''
     if 'beta1' in optimizer_args and 'beta2' in optimizer_args and 'betas' not in optimizer_args:
         optimizer_args['betas'] = (optimizer_args['beta1'], optimizer_args['beta2'])
+    model_parameters=filter(lambda p: p.requires_grad, model.parameters()) if config.get('skip_no_grad_params_in_optimizer', False) else model.parameters()
     optimizer = build_object_from_class_name(
         optimizer_args['optimizer_cls'],
         torch.optim.Optimizer,
         False,
-        model.parameters(),
+        model_parameters,
         **optimizer_args
     )
     return optimizer
