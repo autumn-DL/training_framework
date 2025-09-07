@@ -1,384 +1,5 @@
-def get_pattern_depth(pattern: str) -> tuple[int, int, int]:
-    # base_depth = pattern.count('.')
-    # extra_depth1 = pattern.count('**')
-    # extra_depth2 = pattern.count('*')
-    segs = pattern.split('.')
-    base_depth = len(segs)
-    extra_depth1 = sum(1 for s in segs if s == '*')
-    extra_depth2 = sum(1 for s in segs if s == '**')
-    return base_depth, extra_depth1, extra_depth2
 
 
-def get_pattern_part_depth(pattern: str) -> list[list[int]]:
-    ptc = pattern.split('.')
-    prc = []
-    s0 = 0
-    for p in ptc:
-        s0 += 1
-        if p == '**':
-            prc.append([s0, 1])
-            s0 = 0
-        elif p == '*':
-            prc.append([s0, 0])
-            s0 = 0
-    if s0 > 0:
-        prc.append([s0, -1])
-    return prc
-
-
-def compare_patterns_depth(pattern1: str, pattern2: str) -> int:  # 不修了修不好了
-    '''
-
-    :param pattern1:
-    :param pattern2:
-    :return: -1 0 1 -1代表p1>p2 0代表p1==p2 1代表p1<p2
-    '''
-    base_depth1, extra_depth_pattern1_1, extra_depth_pattern1_2 = get_pattern_depth(pattern1)
-    base_depth2, extra_depth_pattern2_1, extra_depth_pattern2_2 = get_pattern_depth(pattern2)
-
-    if base_depth1 > base_depth2:
-        if extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 == 0:
-            return -1
-        elif extra_depth_pattern1_1 > 0 and extra_depth_pattern1_2 == 0:
-            if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
-                p_depth_pattern1 = get_pattern_part_depth(pattern1)
-                p_depth_pattern2 = get_pattern_part_depth(pattern2)
-                if len(p_depth_pattern1) == len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                    return 0
-                else:
-                    if extra_depth_pattern1_1 > extra_depth_pattern2_1:
-                        return 1
-                    elif extra_depth_pattern1_1 < extra_depth_pattern2_1:
-                        return -1
-                    else:
-                        return 0
-
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
-                return -1
-            else:  # extra_depth_pattern2_1==0 and extra_depth_pattern2_2>0:
-                return -1
-
-        elif extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 > 0:
-            if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
-                return -1
-            else:  # extra_depth_pattern2_1==0 and extra_depth_pattern2_2>0:
-                p_depth_pattern1 = get_pattern_part_depth(pattern1)
-                p_depth_pattern2 = get_pattern_part_depth(pattern2)
-                if len(p_depth_pattern1) == len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                    return 0
-                else:
-                    if extra_depth_pattern1_2 > extra_depth_pattern2_2:
-                        return 1
-                    elif extra_depth_pattern1_2 < extra_depth_pattern2_2:
-                        return -1
-                    else:
-                        return 0
-
-
-
-        else:  # extra_depth_pattern1_1>0 and extra_depth_pattern1_2>0:
-            if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
-                p_depth_pattern1 = get_pattern_part_depth(pattern1)
-                p_depth_pattern2 = get_pattern_part_depth(pattern2)
-                if len(p_depth_pattern1) == len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                        elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
-                            if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
-                                return -1
-                            elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
-                                return 1
-                    return 0
-                elif len(p_depth_pattern1) > len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern2)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                        elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
-                            if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
-                                return -1
-                            elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
-                                return 1
-                    return 0
-                else:  # len(p_depth_pattern1) < len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                        elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
-                            if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
-                                return -1
-                            elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
-                                return 1
-                    return 0
-
-            else:  # extra_depth_pattern2_1==0 and extra_depth_pattern2_2>0:
-                return 1
-
-
-    elif base_depth1 == base_depth2:
-        if extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 == 0:
-            if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
-                return 0
-            else:
-                return -1
-        elif extra_depth_pattern1_1 > 0 and extra_depth_pattern1_2 == 0:
-            if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
-                return -1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
-                return -1
-            else:  # extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
-                p_depth_pattern1 = get_pattern_part_depth(pattern1)
-                p_depth_pattern2 = get_pattern_part_depth(pattern2)
-                if len(p_depth_pattern1) == len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                    return 0
-                else:
-                    if extra_depth_pattern1_1 > extra_depth_pattern2_1:
-                        return 1
-                    elif extra_depth_pattern1_1 < extra_depth_pattern2_1:
-                        return -1
-                    else:
-                        return 0
-        elif extra_depth_pattern1_1 > 0 and extra_depth_pattern1_2 > 0:
-            if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
-                return 1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
-                p_depth_pattern1 = get_pattern_part_depth(pattern1)
-                p_depth_pattern2 = get_pattern_part_depth(pattern2)
-                if len(p_depth_pattern1) == len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                        elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
-                            if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
-                                return -1
-                            elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
-                                return 1
-                    return 0
-                elif len(p_depth_pattern1) > len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern2)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                        elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
-                            if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
-                                return -1
-                            elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
-                                return 1
-                    return 0
-                else:  # len(p_depth_pattern1) < len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                        elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
-                            if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
-                                return -1
-                            elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
-                                return 1
-                    return 0
-            else:  # extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
-                return 1
-        else:  # extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 > 0:
-            if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
-                p_depth_pattern1 = get_pattern_part_depth(pattern1)
-                p_depth_pattern2 = get_pattern_part_depth(pattern2)
-                if len(p_depth_pattern1) == len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                    return 0
-                else:
-                    if extra_depth_pattern1_2 > extra_depth_pattern2_2:
-                        return 1
-                    elif extra_depth_pattern1_2 < extra_depth_pattern2_2:
-                        return -1
-                    else:
-                        return 0
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
-                return -1
-            else:  # extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
-                return 1
-
-
-
-    else:  # base_depth1 < base_depth2
-        if extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 == 0:
-            if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            else:
-                return -1
-        elif extra_depth_pattern1_1 > 0 and extra_depth_pattern1_2 == 0:
-            if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
-                p_depth_pattern1 = get_pattern_part_depth(pattern1)
-                p_depth_pattern2 = get_pattern_part_depth(pattern2)
-                if len(p_depth_pattern1) == len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return 1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return -1
-                    return 0  # 不可能走到这里
-                else:
-                    if extra_depth_pattern1_1 > extra_depth_pattern2_1:
-                        return 1
-                    elif extra_depth_pattern1_1 < extra_depth_pattern2_1:
-                        return -1
-                    else:
-                        return 0  # 不可能走到这里
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
-                return -1
-            else:  # extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
-                return -1
-
-        elif extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 > 0:
-            if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
-                return -1
-            else:  # extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
-                p_depth_pattern1 = get_pattern_part_depth(pattern1)
-                p_depth_pattern2 = get_pattern_part_depth(pattern2)
-                if len(p_depth_pattern1) == len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return 1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return -1
-                    return 0
-                else:
-                    if extra_depth_pattern1_2 > extra_depth_pattern2_2:
-                        return 1
-                    elif extra_depth_pattern1_2 < extra_depth_pattern2_2:
-                        return -1
-                    else:
-                        return 0
-
-        else:  # extra_depth_pattern1_1>0 and extra_depth_pattern1_2>0:
-            if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
-                return 1
-            elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
-                p_depth_pattern1 = get_pattern_part_depth(pattern1)
-                p_depth_pattern2 = get_pattern_part_depth(pattern2)
-                if len(p_depth_pattern1) == len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                        elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
-                            if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
-                                return 1
-                            elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
-                                return -1
-                    return 0
-                elif len(p_depth_pattern1) > len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern2)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                        elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
-                            if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
-                                return 1
-                            elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
-                                return -1
-                    return 0
-                else:  # len(p_depth_pattern1) < len(p_depth_pattern2):
-                    for i in range(len(p_depth_pattern1)):
-                        if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
-                            return -1
-                        elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
-                            return 1
-                        elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
-                            if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
-                                return 1
-                            elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
-                                return -1
-                    return 0
-            else:  # extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
-                return 1
-
-
-def sort_patterns(patterns: list[str]) -> list[str]:
-    # patterns_out=[None]*len(patterns)
-    patterns_out = []
-    patterns_with_index = [(i, p) for i, p in enumerate(patterns)]
-    patterns_with_index = reversed(patterns_with_index)
-    for i in patterns_with_index:
-        if len(patterns_out) == 0:
-            patterns_out.append(i)
-        else:
-            po_size = len(patterns_out)
-            for j in range(po_size):
-                if compare_patterns_depth(i[1], patterns_out[j][1]) == 1:
-                    if j == po_size - 1:
-                        patterns_out.append(i)
-                        break
-                    continue
-                elif compare_patterns_depth(i[1], patterns_out[j][1]) == 0:
-                    if i[0] <= patterns_out[j][0]:
-                        if j == po_size - 1:
-                            patterns_out.append(i)
-                            break
-                        continue
-                    else:
-                        patterns_out.insert(j, i)
-                        break
-                else:  # compare_patterns_depth(i[1],patterns_out[j][1])==-1
-                    patterns_out.insert(j, i)
-                    break
-
-    pox = [i[1] for i in patterns_out]
-    return pox
 
 
 def has_adjacent_wildcards(pattern: str) -> bool:
@@ -537,10 +158,7 @@ def sort_patterns_v2(patterns: list[str]) -> list[str]:
     return [p for p, _ in enriched_sorted]
 
 
-# def match_pattern(txt: str, pattern: str,prefix_mode:bool=True) -> bool:
-#
-#     p=pattern.split('.')
-#     k=txt.split('.')
+
 def match_pattern(txt: str, pattern: str, *, allow_prefix: bool = False) -> bool:
     """
     段式通配匹配（迭代 DP，O(m·n) 时间，O(n) 空间）：
@@ -718,100 +336,105 @@ def sort_patterns_v3_cmp(patterns: list[str]) -> list[str]:
     return [p for p, _ in enriched_sorted]
 
 
-def t1est_match_pattern():
-    # 默认 allow_prefix=False（精确到末尾）
-    cases = [
-        # 精确匹配
-        ("a.b", "a.b", False, True),
-        ("a.b.c", "a.b", False, False),  # pattern 短，key 更长 → 不匹配
-        ("a.b", "a.b.c", False, False),  # pattern 更长且无 ** → 不匹配
-
-        # allow_prefix=True（前缀即命中）
-        ("a.b.c", "a.b", True, True),  # 允许 key 有剩余
-
-        # '*' 恰好一段
-        ("a.b.c", "a.b.*", False, True),
-        ("a.b.c.d", "a.b.*", False, False),  # * 只能吞一段
-
-        # '**' 零或多段
-        ("a.b.c.d", "a.b.**", False, True),
-        ("a.b", "a.b.**", False, True),  # ** 吞 0 段
-        ("a.b.c", "**", False, True),  # 任意
-
-        # 组合
-        ("a.b.c", "*.*", False, False),
-        ("a.b.c", "*.*", True, True),
-        ("a.b.c", "*.*.*", False, True),
-        ("a.b.c", "*.b.*", False, True),
-        ("a.b.c", "*.c.*", False, False),  # 中间 b != c
-
-        # 你关心的：pattern 比 key 更长但无 '**' → 不匹配
-        ("a.b", "a.b.b.b", False, False),
-        ("a.b.b.b", "a.b", False, False),
-    ]
-
-    for txt, pat, allow_prefix, expected in cases:
-        got = match_pattern(txt, pat, allow_prefix=allow_prefix)
-        assert got == expected, f"match_pattern({txt!r}, {pat!r}, allow_prefix={allow_prefix}) -> {got}, expected {expected}"
 
 
-def t1est_invalid_patterns_filters():
-    # 非法模式（相邻涉及 **）
-    assert has_adjacent_wildcards("a.**.*") is True
-    assert has_adjacent_wildcards("a.*.**") is True
-    assert has_adjacent_wildcards("a.**.**") is True
-    assert has_adjacent_wildcards("a.*.*") is False
-    assert has_adjacent_wildcards("a.**.b") is False
-
-    # 空段模式
-    assert has_empty_segments("a..b") is True
-    assert has_empty_segments("a.b.") is True
-    assert has_empty_segments(".a.b") is True
-    assert has_empty_segments("a.b") is False
-
-    # 组合过滤（drop 模式）
-    patterns = ["a..b", "a.b", "a.**.*", "x.y", "a.b.", "a.*.*"]
-    dropped = filter_invalid_patterns(patterns, mode="drop")
-    # 应仅保留合法的
-    assert dropped == ["a.b", "x.y", "a.*.*"]
-
-
-def _is_star_only(p: str) -> bool:
-    depth, star, dstar, literal, mixed = _pattern_stats(p)
-    return literal == 0 and dstar == 0 and star > 0
-
-
-def t1est_sort_patterns_v2():
-    demo = [
-        "a.b.*.c",
-        "a.**.b",
-        "a.*.*.b",
-        "a.**.b",  # 重复
-        "*.*",
-        "*",
-        "encoder.**.layer.*",
-        "a.b.c",
-    ]
-    res = sort_patterns_v2(demo)
-
-    # 直觉 1：纯字面最具体在最前
-    assert res[0] == "a.b.c"
-
-    # 直觉 2：纯星模式整体靠后（具体顺序不强制，但应当在末尾区域）
-    star_only_positions = [i for i, p in enumerate(res) if _is_star_only(p)]
-    non_star_positions = [i for i, p in enumerate(res) if not _is_star_only(p)]
-    assert len(star_only_positions) >= 1
-    assert max(non_star_positions) < min(star_only_positions), \
-        f"star-only patterns should be after all non-star patterns; got {res}"
 
 
 if __name__ == '__main__':
+
+    def t1est_match_pattern():
+        # 默认 allow_prefix=False（精确到末尾）
+        cases = [
+            # 精确匹配
+            ("a.b", "a.b", False, True),
+            ("a.b.c", "a.b", False, False),  # pattern 短，key 更长 → 不匹配
+            ("a.b", "a.b.c", False, False),  # pattern 更长且无 ** → 不匹配
+
+            # allow_prefix=True（前缀即命中）
+            ("a.b.c", "a.b", True, True),  # 允许 key 有剩余
+
+            # '*' 恰好一段
+            ("a.b.c", "a.b.*", False, True),
+            ("a.b.c.d", "a.b.*", False, False),  # * 只能吞一段
+
+            # '**' 零或多段
+            ("a.b.c.d", "a.b.**", False, True),
+            ("a.b", "a.b.**", False, True),  # ** 吞 0 段
+            ("a.b.c", "**", False, True),  # 任意
+
+            # 组合
+            ("a.b.c", "*.*", False, False),
+            ("a.b.c", "*.*", True, True),
+            ("a.b.c", "*.*.*", False, True),
+            ("a.b.c", "*.b.*", False, True),
+            ("a.b.c", "*.c.*", False, False),  # 中间 b != c
+
+            # 你关心的：pattern 比 key 更长但无 '**' → 不匹配
+            ("a.b", "a.b.b.b", False, False),
+            ("a.b.b.b", "a.b", False, False),
+        ]
+
+        for txt, pat, allow_prefix, expected in cases:
+            got = match_pattern(txt, pat, allow_prefix=allow_prefix)
+            assert got == expected, f"match_pattern({txt!r}, {pat!r}, allow_prefix={allow_prefix}) -> {got}, expected {expected}"
+
+
+    def t1est_invalid_patterns_filters():
+        # 非法模式（相邻涉及 **）
+        assert has_adjacent_wildcards("a.**.*") is True
+        assert has_adjacent_wildcards("a.*.**") is True
+        assert has_adjacent_wildcards("a.**.**") is True
+        assert has_adjacent_wildcards("a.*.*") is False
+        assert has_adjacent_wildcards("a.**.b") is False
+
+        # 空段模式
+        assert has_empty_segments("a..b") is True
+        assert has_empty_segments("a.b.") is True
+        assert has_empty_segments(".a.b") is True
+        assert has_empty_segments("a.b") is False
+
+        # 组合过滤（drop 模式）
+        patterns = ["a..b", "a.b", "a.**.*", "x.y", "a.b.", "a.*.*"]
+        dropped = filter_invalid_patterns(patterns, mode="drop")
+        # 应仅保留合法的
+        assert dropped == ["a.b", "x.y", "a.*.*"]
+
+
+    def _is_star_only(p: str) -> bool:
+        depth, star, dstar, literal, mixed = _pattern_stats(p)
+        return literal == 0 and dstar == 0 and star > 0
+
+
+    def t1est_sort_patterns_v2():
+        demo = [
+            "a.b.*.c",
+            "a.**.b",
+            "a.*.*.b",
+            "a.**.b",  # 重复
+            "*.*",
+            "*",
+            "encoder.**.layer.*",
+            "a.b.c",
+        ]
+        res = sort_patterns_v2(demo)
+
+        # 直觉 1：纯字面最具体在最前
+        assert res[0] == "a.b.c"
+
+        # 直觉 2：纯星模式整体靠后（具体顺序不强制，但应当在末尾区域）
+        star_only_positions = [i for i, p in enumerate(res) if _is_star_only(p)]
+        non_star_positions = [i for i, p in enumerate(res) if not _is_star_only(p)]
+        assert len(star_only_positions) >= 1
+        assert max(non_star_positions) < min(star_only_positions), \
+            f"star-only patterns should be after all non-star patterns; got {res}"
+
+
     pass
     print(match_pattern("a.b.c", "*.*", allow_prefix=True))
     t1est_match_pattern()
     t1est_invalid_patterns_filters()
     t1est_sort_patterns_v2()
-    compare_patterns_depth('*', 'encoder.**.layer.*.a')
+    # compare_patterns_depth('*', 'encoder.**.layer.*.a')
     #
     # pattern = 'a.b.c.d.e.f.g.h.i.j.k.l.m.n.o.p.q.r.s.t.u.v.w.x.y.z'
     # base_depth, extra_depth1, extra_depth2 = get_pattern_depth(pattern)
@@ -829,7 +452,7 @@ if __name__ == '__main__':
     # print('filtered:', filter_adjacent_wildcards(demo, mode='drop'))
     demo = ['!a.b.*.c', 'a.**.b', 'a.*.*.b', 'a.**.b', '*.*', 'encoder.**.layer.*', 'a.b.c.c.v.c.x.c',
             'encoder.**.layer.*.a', 'a.b.*.b.c.b.*.*', '*', 'a.b.b.b.*', 'a.b.b.b.c.*.*.*', '*.*.*.*.','a.c.d.f.g.s.**','**.am.s.d.f.e.f.a.s.d','*.am.s.d.f.e.f.a.s.d']
-    print('sort:', sort_patterns(demo))
+    # print('sort:', sort_patterns(demo))
     print('sort_v2:', sort_patterns_v2(demo))
     print('sort_v3:', sort_patterns_v3(demo))
     print('sort_patterns_v3_cmp', sort_patterns_v3_cmp(demo))
@@ -840,3 +463,386 @@ if __name__ == '__main__':
     # print(_specificity_tuple('*.a'))
     # print(_specificity_tuple('*.*'))
     # print(_specificity_tuple('a.a.*.**'))
+
+    def get_pattern_depth(pattern: str) -> tuple[int, int, int]:
+        # base_depth = pattern.count('.')
+        # extra_depth1 = pattern.count('**')
+        # extra_depth2 = pattern.count('*')
+        segs = pattern.split('.')
+        base_depth = len(segs)
+        extra_depth1 = sum(1 for s in segs if s == '*')
+        extra_depth2 = sum(1 for s in segs if s == '**')
+        return base_depth, extra_depth1, extra_depth2
+
+
+    def get_pattern_part_depth(pattern: str) -> list[list[int]]:
+        ptc = pattern.split('.')
+        prc = []
+        s0 = 0
+        for p in ptc:
+            s0 += 1
+            if p == '**':
+                prc.append([s0, 1])
+                s0 = 0
+            elif p == '*':
+                prc.append([s0, 0])
+                s0 = 0
+        if s0 > 0:
+            prc.append([s0, -1])
+        return prc
+
+    def compare_patterns_depth(pattern1: str, pattern2: str) -> int:  # 不修了修不好了
+        '''
+
+        :param pattern1:
+        :param pattern2:
+        :return: -1 0 1 -1代表p1>p2 0代表p1==p2 1代表p1<p2
+        '''
+        base_depth1, extra_depth_pattern1_1, extra_depth_pattern1_2 = get_pattern_depth(pattern1)
+        base_depth2, extra_depth_pattern2_1, extra_depth_pattern2_2 = get_pattern_depth(pattern2)
+
+        if base_depth1 > base_depth2:
+            if extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 == 0:
+                return -1
+            elif extra_depth_pattern1_1 > 0 and extra_depth_pattern1_2 == 0:
+                if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
+                    p_depth_pattern1 = get_pattern_part_depth(pattern1)
+                    p_depth_pattern2 = get_pattern_part_depth(pattern2)
+                    if len(p_depth_pattern1) == len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                        return 0
+                    else:
+                        if extra_depth_pattern1_1 > extra_depth_pattern2_1:
+                            return 1
+                        elif extra_depth_pattern1_1 < extra_depth_pattern2_1:
+                            return -1
+                        else:
+                            return 0
+
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
+                    return -1
+                else:  # extra_depth_pattern2_1==0 and extra_depth_pattern2_2>0:
+                    return -1
+
+            elif extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 > 0:
+                if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
+                    return -1
+                else:  # extra_depth_pattern2_1==0 and extra_depth_pattern2_2>0:
+                    p_depth_pattern1 = get_pattern_part_depth(pattern1)
+                    p_depth_pattern2 = get_pattern_part_depth(pattern2)
+                    if len(p_depth_pattern1) == len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                        return 0
+                    else:
+                        if extra_depth_pattern1_2 > extra_depth_pattern2_2:
+                            return 1
+                        elif extra_depth_pattern1_2 < extra_depth_pattern2_2:
+                            return -1
+                        else:
+                            return 0
+
+
+
+            else:  # extra_depth_pattern1_1>0 and extra_depth_pattern1_2>0:
+                if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
+                    p_depth_pattern1 = get_pattern_part_depth(pattern1)
+                    p_depth_pattern2 = get_pattern_part_depth(pattern2)
+                    if len(p_depth_pattern1) == len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                            elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
+                                if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
+                                    return -1
+                                elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
+                                    return 1
+                        return 0
+                    elif len(p_depth_pattern1) > len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern2)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                            elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
+                                if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
+                                    return -1
+                                elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
+                                    return 1
+                        return 0
+                    else:  # len(p_depth_pattern1) < len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                            elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
+                                if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
+                                    return -1
+                                elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
+                                    return 1
+                        return 0
+
+                else:  # extra_depth_pattern2_1==0 and extra_depth_pattern2_2>0:
+                    return 1
+
+
+        elif base_depth1 == base_depth2:
+            if extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 == 0:
+                if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
+                    return 0
+                else:
+                    return -1
+            elif extra_depth_pattern1_1 > 0 and extra_depth_pattern1_2 == 0:
+                if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
+                    return -1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
+                    return -1
+                else:  # extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
+                    p_depth_pattern1 = get_pattern_part_depth(pattern1)
+                    p_depth_pattern2 = get_pattern_part_depth(pattern2)
+                    if len(p_depth_pattern1) == len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                        return 0
+                    else:
+                        if extra_depth_pattern1_1 > extra_depth_pattern2_1:
+                            return 1
+                        elif extra_depth_pattern1_1 < extra_depth_pattern2_1:
+                            return -1
+                        else:
+                            return 0
+            elif extra_depth_pattern1_1 > 0 and extra_depth_pattern1_2 > 0:
+                if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
+                    return 1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
+                    p_depth_pattern1 = get_pattern_part_depth(pattern1)
+                    p_depth_pattern2 = get_pattern_part_depth(pattern2)
+                    if len(p_depth_pattern1) == len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                            elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
+                                if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
+                                    return -1
+                                elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
+                                    return 1
+                        return 0
+                    elif len(p_depth_pattern1) > len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern2)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                            elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
+                                if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
+                                    return -1
+                                elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
+                                    return 1
+                        return 0
+                    else:  # len(p_depth_pattern1) < len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                            elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
+                                if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
+                                    return -1
+                                elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
+                                    return 1
+                        return 0
+                else:  # extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+            else:  # extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 > 0:
+                if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
+                    p_depth_pattern1 = get_pattern_part_depth(pattern1)
+                    p_depth_pattern2 = get_pattern_part_depth(pattern2)
+                    if len(p_depth_pattern1) == len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                        return 0
+                    else:
+                        if extra_depth_pattern1_2 > extra_depth_pattern2_2:
+                            return 1
+                        elif extra_depth_pattern1_2 < extra_depth_pattern2_2:
+                            return -1
+                        else:
+                            return 0
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
+                    return -1
+                else:  # extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+
+
+
+        else:  # base_depth1 < base_depth2
+            if extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 == 0:
+                if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                else:
+                    return -1
+            elif extra_depth_pattern1_1 > 0 and extra_depth_pattern1_2 == 0:
+                if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
+                    p_depth_pattern1 = get_pattern_part_depth(pattern1)
+                    p_depth_pattern2 = get_pattern_part_depth(pattern2)
+                    if len(p_depth_pattern1) == len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return 1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return -1
+                        return 0  # 不可能走到这里
+                    else:
+                        if extra_depth_pattern1_1 > extra_depth_pattern2_1:
+                            return 1
+                        elif extra_depth_pattern1_1 < extra_depth_pattern2_1:
+                            return -1
+                        else:
+                            return 0  # 不可能走到这里
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
+                    return -1
+                else:  # extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
+                    return -1
+
+            elif extra_depth_pattern1_1 == 0 and extra_depth_pattern1_2 > 0:
+                if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
+                    return -1
+                else:  # extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
+                    p_depth_pattern1 = get_pattern_part_depth(pattern1)
+                    p_depth_pattern2 = get_pattern_part_depth(pattern2)
+                    if len(p_depth_pattern1) == len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return 1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return -1
+                        return 0
+                    else:
+                        if extra_depth_pattern1_2 > extra_depth_pattern2_2:
+                            return 1
+                        elif extra_depth_pattern1_2 < extra_depth_pattern2_2:
+                            return -1
+                        else:
+                            return 0
+
+            else:  # extra_depth_pattern1_1>0 and extra_depth_pattern1_2>0:
+                if extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 == 0:
+                    return 1
+                elif extra_depth_pattern2_1 > 0 and extra_depth_pattern2_2 > 0:
+                    p_depth_pattern1 = get_pattern_part_depth(pattern1)
+                    p_depth_pattern2 = get_pattern_part_depth(pattern2)
+                    if len(p_depth_pattern1) == len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                            elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
+                                if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
+                                    return 1
+                                elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
+                                    return -1
+                        return 0
+                    elif len(p_depth_pattern1) > len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern2)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                            elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
+                                if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
+                                    return 1
+                                elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
+                                    return -1
+                        return 0
+                    else:  # len(p_depth_pattern1) < len(p_depth_pattern2):
+                        for i in range(len(p_depth_pattern1)):
+                            if p_depth_pattern1[i][0] > p_depth_pattern2[i][0]:
+                                return -1
+                            elif p_depth_pattern1[i][0] < p_depth_pattern2[i][0]:
+                                return 1
+                            elif p_depth_pattern1[i][0] == p_depth_pattern2[i][0]:
+                                if p_depth_pattern1[i][1] > p_depth_pattern2[i][1]:
+                                    return 1
+                                elif p_depth_pattern1[i][1] < p_depth_pattern2[i][1]:
+                                    return -1
+                        return 0
+                else:  # extra_depth_pattern2_1 == 0 and extra_depth_pattern2_2 > 0:
+                    return 1
+
+
+    def sort_patterns(patterns: list[str]) -> list[str]:
+        # patterns_out=[None]*len(patterns)
+        patterns_out = []
+        patterns_with_index = [(i, p) for i, p in enumerate(patterns)]
+        patterns_with_index = reversed(patterns_with_index)
+        for i in patterns_with_index:
+            if len(patterns_out) == 0:
+                patterns_out.append(i)
+            else:
+                po_size = len(patterns_out)
+                for j in range(po_size):
+                    if compare_patterns_depth(i[1], patterns_out[j][1]) == 1:
+                        if j == po_size - 1:
+                            patterns_out.append(i)
+                            break
+                        continue
+                    elif compare_patterns_depth(i[1], patterns_out[j][1]) == 0:
+                        if i[0] <= patterns_out[j][0]:
+                            if j == po_size - 1:
+                                patterns_out.append(i)
+                                break
+                            continue
+                        else:
+                            patterns_out.insert(j, i)
+                            break
+                    else:  # compare_patterns_depth(i[1],patterns_out[j][1])==-1
+                        patterns_out.insert(j, i)
+                        break
+
+        pox = [i[1] for i in patterns_out]
+        return pox
+
+
